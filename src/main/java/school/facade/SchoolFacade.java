@@ -7,6 +7,7 @@ import school.observer.ParentObserver;
 import school.observer.StudentObserver;
 import school.factory.*;
 import school.builder.*;
+import school.strategy.*;
 
 public class SchoolFacade {
     private GradeNotifier gradeNotifier = new GradeNotifier();
@@ -88,6 +89,50 @@ public class SchoolFacade {
         System.out.println("Onboarding complete.");
     }
 
+    public double calculateAttendancePercentage(String studentName, int presentDays, int totalDays) {
+        System.out.println("\nCalculating Attendance Percentage for " + studentName);
+        System.out.println("Using Percentage Attendance Strategy");
+        
+        AttendanceStrategy strategy = new PercentageAttendanceStrategy();
+        AttendanceCalculator calculator = new AttendanceCalculator(strategy);
+        double result = calculator.calculateAttendance(presentDays, totalDays);
+        
+        System.out.println("Present Days: " + presentDays);
+        System.out.println("Total Days: " + totalDays);
+        System.out.println("Attendance: " + result + "%");
+        
+        return result;
+    }
+
+    public boolean checkAttendancePassFail(String studentName, int presentDays, int totalDays) {
+        System.out.println("\nChecking Attendance Pass/Fail for " + studentName);
+        System.out.println("Using Pass/Fail Attendance Strategy");
+        
+        AttendanceStrategy strategy = new PassFailAttendanceStrategy();
+        AttendanceCalculator calculator = new AttendanceCalculator(strategy);
+        double result = calculator.calculateAttendance(presentDays, totalDays);
+        
+        boolean passed;
+        if (result >= 100.0) {
+            passed = true;
+        } else {
+            passed = false;
+        }
+        
+        System.out.println("Present Days: " + presentDays);
+        System.out.println("Total Days: " + totalDays);
+        
+        String status;
+        if (passed) {
+            status = "PASS";
+        } else {
+            status = "FAIL";
+        }
+        System.out.println("Status: " + status);
+        
+        return passed;
+    }
+
     public void demonstrateCompleteSystem() {
         System.out.println("System Demo Starting");
 
@@ -99,9 +144,13 @@ public class SchoolFacade {
                 "Fall"
         );
 
-        System.out.println("Updating Grade");
+        System.out.println("\nUpdating Grade");
         updateSubject("Emma Wilson", new NumericGrade(75), 88);
 
-        System.out.println("Demo Finished.");
+        System.out.println("\nStrategy Pattern Integration");
+        calculateAttendancePercentage("Emma Wilson", 18, 20);
+        checkAttendancePassFail("Emma Wilson", 18, 20);
+
+        System.out.println("\nDemo Finished.");
     }
 }
