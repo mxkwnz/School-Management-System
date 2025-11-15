@@ -5,14 +5,26 @@ import school.adapter.NumericGrade;
 import school.observer.GradeNotifier;
 import school.observer.ParentObserver;
 import school.observer.StudentObserver;
+import school.observer.EmailNotificationObserver;
 import school.factory.*;
 import school.builder.*;
 import school.strategy.*;
 import school.decorator.*;
+import school.model.Grade;
+import school.repository.GradeRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
+@Service
 public class SchoolFacade {
     private GradeNotifier gradeNotifier = new GradeNotifier();
     private TimetableDirector timetableDirector = new TimetableDirector();
+    
+    @Autowired(required = false)
+    private EmailNotificationObserver emailNotificationObserver;
+    
+    @Autowired(required = false)
+    private GradeRepository gradeRepository;
 
     public Profile enrollStudent(String id, String name, String major) {
         ProfileFactory factory = new StudentProfileFactory(id, name, major);
@@ -50,6 +62,12 @@ public class SchoolFacade {
         int oldScore = oldGrade.getScore();
         NumericGrade newGrade = new NumericGrade(newScore);
         new GradeAdapter(newGrade).adaptGrade();
+        
+        if (gradeRepository != null) {
+            Grade grade = new Grade("", studentName, "General", newScore);
+            gradeRepository.save(grade);
+        }
+        
         gradeNotifier.setGrade(studentName, oldScore, newScore);
     }
 
@@ -59,6 +77,15 @@ public class SchoolFacade {
         enrollStudent(id, name, major);
 
         gradeNotifier.addObserver(new ParentObserver());
+        
+        if (emailNotificationObserver != null) {
+            gradeNotifier.addObserver(emailNotificationObserver);
+            System.out.println("Email notifications enabled for:");
+            for (String email : emailNotificationObserver.getEmailAddresses()) {
+                System.out.println("  - " + email);
+            }
+        }
+        
         System.out.println("Parent notifications enabled.");
 
         Timetable timetable = createStudentTimetable(name, year, semester);
@@ -134,12 +161,12 @@ public class SchoolFacade {
         return passed;
     }
 
-    public User createUserWithRole(String role) {
-        User basicUser = new BasicUser();
+    public school.decorator.User createUserWithRole(String role) {
+        school.decorator.User basicUser = new BasicUser();
         System.out.println("\nDecorator Pattern - Creating User with Role: " + role);
         System.out.println("Initial: " + basicUser.getDescription() + " (Access Level: " + basicUser.getAccessLevel() + ")");
         
-        User decoratedUser;
+        school.decorator.User decoratedUser;
         switch (role.toLowerCase()) {
             case "admin":
                 decoratedUser = new AdminDecorator(basicUser);
@@ -159,8 +186,8 @@ public class SchoolFacade {
         return decoratedUser;
     }
 
-    public User createMultiRoleUser(String... roles) {
-        User user = new BasicUser();
+    public school.decorator.User createMultiRoleUser(String... roles) {
+        school.decorator.User user = new BasicUser();
         System.out.println("\nDecorator Pattern - Creating Multi-Role User");
         System.out.println("Initial: " + user.getDescription() + " (Access Level: " + user.getAccessLevel() + ")");
         
@@ -188,18 +215,18 @@ public class SchoolFacade {
 
         completeStudentRegistration(
                 "S2024100",
-                "Emma Wilson",
+                "Muhammedali Kalen",
                 "Computer Science",
                 "2024-2025",
                 "Fall"
         );
 
         System.out.println("\nUpdating Grade");
-        updateSubject("Emma Wilson", new NumericGrade(75), 88);
+        updateSubject("Muhammedali Kalen", new NumericGrade(75), 88);
 
         System.out.println("\nStrategy Pattern Integration");
-        calculateAttendancePercentage("Emma Wilson", 18, 20);
-        checkAttendancePassFail("Emma Wilson", 18, 20);
+        calculateAttendancePercentage("Muhammedali Kalen", 18, 20);
+        checkAttendancePassFail("Muhammedali Kalen", 18, 20);
 
         System.out.println("\nDecorator Pattern Integration");
         createUserWithRole("teacher");
