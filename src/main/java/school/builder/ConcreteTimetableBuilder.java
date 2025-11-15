@@ -11,8 +11,8 @@ public class ConcreteTimetableBuilder implements TimetableBuilder {
     }
 
     @Override
-    public TimetableBuilder setSemester(String semester) {
-        timetable.setSemester(semester);
+    public TimetableBuilder setTrimester(String trimester) {
+        timetable.setTrimester(trimester);
         return this;
     }
 
@@ -96,9 +96,9 @@ public class ConcreteTimetableBuilder implements TimetableBuilder {
     }
 
     private void validateTimetableComplete() {
-        if (timetable.getSemester() == null || timetable.getAcademicYear() == null) {
+        if (timetable.getTrimester() == null || timetable.getAcademicYear() == null) {
             throw new IllegalStateException(
-                    "Timetable must have semester and academic year set"
+                    "Timetable must have trimester and academic year set"
             );
         }
     }

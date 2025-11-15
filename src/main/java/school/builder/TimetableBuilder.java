@@ -1,7 +1,7 @@
 package school.builder;
 
 public interface TimetableBuilder {
-    TimetableBuilder setSemester(String semester);
+    TimetableBuilder setTrimester(String trimester);
     TimetableBuilder setAcademicYear(String academicYear);
     TimetableBuilder addSubject(String subject);
     TimetableBuilder addTeacher(String teacher);
