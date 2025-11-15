@@ -4,7 +4,7 @@ public class TimetableDirector {
     public Timetable constructFullTimeTimetable(TimetableBuilder builder) {
         return builder
                 .setAcademicYear("2025-2026")
-                .setSemester("1")
+                .setTrimester("first")
                 .addSubject("Object-Oriented Programming")
                 .addTeacher("Dr. Aibek")
                 .addRoom("C1.1.366")
@@ -23,7 +23,7 @@ public class TimetableDirector {
     public Timetable constructPartTimeTimetable(TimetableBuilder builder) {
         return builder
                 .setAcademicYear("2024-2025")
-                .setSemester("2")
+                .setTrimester("second")
                 .addSubject("Web Development")
                 .addTeacher("Prof. Ali")
                 .addRoom("C1.1.235")
@@ -34,11 +34,11 @@ public class TimetableDirector {
     public Timetable constructCustomTimetable(
             TimetableBuilder builder,
             String year,
-            String semester
+            String trimester
     ) {
         return builder
                 .setAcademicYear(year)
-                .setSemester(semester)
+                .setTrimester(trimester)
                 .build();
     }
 }
