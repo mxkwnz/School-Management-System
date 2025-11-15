@@ -8,6 +8,7 @@ import school.observer.StudentObserver;
 import school.factory.*;
 import school.builder.*;
 import school.strategy.*;
+import school.decorator.*;
 
 public class SchoolFacade {
     private GradeNotifier gradeNotifier = new GradeNotifier();
@@ -38,10 +39,10 @@ public class SchoolFacade {
         return timetable;
     }
 
-    public Timetable createCustomTimetable(String year, String semester) {
+    public Timetable createCustomTimetable(String year, String trimester) {
         return new ConcreteTimetableBuilder()
                 .setAcademicYear(year)
-                .setSemester(semester)
+                .setTrimester(trimester)
                 .build();
     }
 
@@ -55,7 +56,7 @@ public class SchoolFacade {
     public void completeStudentRegistration(String id, String name, String major, String year, String semester) {
         System.out.println("Student Registration Process");
 
-        Profile student = enrollStudent(id, name, major);
+        enrollStudent(id, name, major);
 
         gradeNotifier.addObserver(new ParentObserver());
         System.out.println("Parent notifications enabled.");
@@ -69,11 +70,11 @@ public class SchoolFacade {
     public void completeStaffOnboarding(String id, String name, String dept, String position, String year, String semester) {
         System.out.println("Staff Onboarding Process");
 
-        Profile staff = hireStaff(id, name, dept, position);
+        hireStaff(id, name, dept, position);
 
         Timetable schedule = new ConcreteTimetableBuilder()
                 .setAcademicYear(year)
-                .setSemester(semester)
+                .setTrimester(semester)
                 .addSubject("Software Design Patterns")
                 .addTeacher(name)
                 .addRoom("Room 501")
@@ -133,6 +134,55 @@ public class SchoolFacade {
         return passed;
     }
 
+    public User createUserWithRole(String role) {
+        User basicUser = new BasicUser();
+        System.out.println("\nDecorator Pattern - Creating User with Role: " + role);
+        System.out.println("Initial: " + basicUser.getDescription() + " (Access Level: " + basicUser.getAccessLevel() + ")");
+        
+        User decoratedUser;
+        switch (role.toLowerCase()) {
+            case "admin":
+                decoratedUser = new AdminDecorator(basicUser);
+                break;
+            case "teacher":
+                decoratedUser = new TeacherDecorator(basicUser);
+                break;
+            case "classadvisor":
+            case "class advisor":
+                decoratedUser = new ClassAdvisorDecorator(basicUser);
+                break;
+            default:
+                decoratedUser = basicUser;
+        }
+        
+        System.out.println("After decoration: " + decoratedUser.getDescription() + " (Access Level: " + decoratedUser.getAccessLevel() + ")");
+        return decoratedUser;
+    }
+
+    public User createMultiRoleUser(String... roles) {
+        User user = new BasicUser();
+        System.out.println("\nDecorator Pattern - Creating Multi-Role User");
+        System.out.println("Initial: " + user.getDescription() + " (Access Level: " + user.getAccessLevel() + ")");
+        
+        for (String role : roles) {
+            switch (role.toLowerCase()) {
+                case "admin":
+                    user = new AdminDecorator(user);
+                    break;
+                case "teacher":
+                    user = new TeacherDecorator(user);
+                    break;
+                case "classadvisor":
+                case "class advisor":
+                    user = new ClassAdvisorDecorator(user);
+                    break;
+            }
+            System.out.println("After adding " + role + ": " + user.getDescription() + " (Access Level: " + user.getAccessLevel() + ")");
+        }
+        
+        return user;
+    }
+
     public void demonstrateCompleteSystem() {
         System.out.println("System Demo Starting");
 
@@ -150,6 +200,11 @@ public class SchoolFacade {
         System.out.println("\nStrategy Pattern Integration");
         calculateAttendancePercentage("Emma Wilson", 18, 20);
         checkAttendancePassFail("Emma Wilson", 18, 20);
+
+        System.out.println("\nDecorator Pattern Integration");
+        createUserWithRole("teacher");
+        createUserWithRole("admin");
+        createMultiRoleUser("teacher", "class advisor");
 
         System.out.println("\nDemo Finished.");
     }
