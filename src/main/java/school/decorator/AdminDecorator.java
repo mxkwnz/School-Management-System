@@ -7,7 +7,7 @@ public class AdminDecorator extends UserDecorator {
 
     @Override
     public String getDescription() {
-        return decoratedUser.getDescription() + decoratedUser.getDescription() + ", Admin";
+        return decoratedUser.getDescription() + ", Admin";
     }
 
     @Override
