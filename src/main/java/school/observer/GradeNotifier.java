@@ -1,10 +1,10 @@
 package school.observer;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 public class GradeNotifier implements GradeSubject {
-    private List<GradeObserver> observers  = new ArrayList<>();
+    private Set<GradeObserver> observers = new HashSet<>();
 
     @Override
     public void addObserver(GradeObserver observer) {
