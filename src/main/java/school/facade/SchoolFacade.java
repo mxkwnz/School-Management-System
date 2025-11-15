@@ -1,5 +1,6 @@
 package school.facade;
 
+import school.SchoolManagementService;
 import school.adapter.GradeAdapter;
 import school.adapter.NumericGrade;
 import school.observer.GradeNotifier;
@@ -16,7 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
-public class SchoolFacade {
+public class SchoolFacade implements SchoolManagementService {
     private GradeNotifier gradeNotifier = new GradeNotifier();
     private TimetableDirector timetableDirector = new TimetableDirector();
     
@@ -58,6 +59,18 @@ public class SchoolFacade {
                 .build();
     }
 
+    @Override
+    public Timetable createPartTimeTimetable(String year, String trimester) {
+        System.out.println("Creating part-time timetable for " + year + " - " + trimester);
+        TimetableBuilder builder = new ConcreteTimetableBuilder();
+        Timetable timetable = timetableDirector.constructPartTimeTimetable(builder);
+        timetable.setAcademicYear(year);
+        timetable.setTrimester(trimester);
+        System.out.println("Part-time timetable created.");
+        timetable.displayTimetable();
+        return timetable;
+    }
+
     public void updateSubject(String studentName, NumericGrade oldGrade, int newScore) {
         int oldScore = oldGrade.getScore();
         NumericGrade newGrade = new NumericGrade(newScore);
@@ -68,6 +81,25 @@ public class SchoolFacade {
             gradeRepository.save(grade);
         }
         
+        gradeNotifier.setGrade(studentName, oldScore, newScore);
+    }
+
+    @Override
+    public void updateGrade(String studentName, NumericGrade oldGrade, int newScore) {
+        updateSubject(studentName, oldGrade, newScore);
+    }
+
+    @Override
+    public void registerGradeObserver(String observerType) {
+        if ("student".equalsIgnoreCase(observerType)) {
+            gradeNotifier.addObserver(new StudentObserver());
+        } else if ("parent".equalsIgnoreCase(observerType)) {
+            gradeNotifier.addObserver(new ParentObserver());
+        }
+    }
+
+    @Override
+    public void notifyGradeChange(String studentName, int oldScore, int newScore) {
         gradeNotifier.setGrade(studentName, oldScore, newScore);
     }
 
@@ -184,6 +216,37 @@ public class SchoolFacade {
         
         System.out.println("After decoration: " + decoratedUser.getDescription() + " (Access Level: " + decoratedUser.getAccessLevel() + ")");
         return decoratedUser;
+    }
+
+    @Override
+    public User createUserWithRole(String baseType, String... roles) {
+        User user = new BasicUser();
+        System.out.println("\nDecorator Pattern - Creating User with Multiple Roles");
+        System.out.println("Initial: " + user.getDescription() + " (Access Level: " + user.getAccessLevel() + ")");
+        
+        for (String role : roles) {
+            switch (role.toLowerCase()) {
+                case "admin":
+                    user = new AdminDecorator(user);
+                    break;
+                case "teacher":
+                    user = new TeacherDecorator(user);
+                    break;
+                case "classadvisor":
+                case "class advisor":
+                    user = new ClassAdvisorDecorator(user);
+                    break;
+            }
+            System.out.println("After adding " + role + ": " + user.getDescription() + " (Access Level: " + user.getAccessLevel() + ")");
+        }
+        
+        return user;
+    }
+
+    @Override
+    public void displayUserAccess(User user) {
+        System.out.println("User Description: " + user.getDescription());
+        System.out.println("Access Level: " + user.getAccessLevel());
     }
 
     public school.decorator.User createMultiRoleUser(String... roles) {
