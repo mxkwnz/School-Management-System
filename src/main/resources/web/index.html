@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>School Management System</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>School Management System</h1>
+        <p class="subtitle">Administrative Portal</p>
+    </header>
+
+    <nav class="tabs">
+        <button class="tab-button active" onclick="showTab('student')">Student Registration</button>
+        <button class="tab-button" onclick="showTab('staff')">Staff Onboarding</button>
+        <button class="tab-button" onclick="showTab('grade')">Grade Management</button>
+        <button class="tab-button" onclick="showTab('attendance')">Attendance</button>
+        <button class="tab-button" onclick="showTab('user')">User Roles</button>
+        <button class="tab-button" onclick="showTab('demo')">System Demo</button>
+    </nav>
+
+    <!-- Student Registration Tab -->
+    <div id="student" class="tab-content active">
+        <h2>Student Registration</h2>
+        <form id="studentForm" onsubmit="registerStudent(event)">
+            <div class="form-group">
+                <label>Student ID:</label>
+                <input type="text" id="studentId" required>
+            </div>
+            <div class="form-group">
+                <label>Name:</label>
+                <input type="text" id="studentName" required>
+            </div>
+            <div class="form-group">
+                <label>Major:</label>
+                <input type="text" id="studentMajor" required>
+            </div>
+            <div class="form-group">
+                <label>Academic Year:</label>
+                <input type="text" id="studentYear" value="2024-2025">
+            </div>
+            <div class="form-group">
+                <label>Trimester:</label>
+                <select id="studentTrimester">
+                    <option value="first">First</option>
+                    <option value="second">Second</option>
+                    <option value="third">Third</option>
+                </select>
+            </div>
+            <button type="submit" class="btn-primary">Register Student</button>
+        </form>
+        <div id="studentResult" class="result"></div>
+    </div>
+
+    <!-- Staff Onboarding Tab -->
+    <div id="staff" class="tab-content">
+        <h2>Staff Onboarding</h2>
+        <form id="staffForm" onsubmit="onboardStaff(event)">
+            <div class="form-group">
+                <label>Staff ID:</label>
+                <input type="text" id="staffId" required>
+            </div>
+            <div class="form-group">
+                <label>Name:</label>
+                <input type="text" id="staffName" required>
+            </div>
+            <div class="form-group">
+                <label>Department:</label>
+                <input type="text" id="staffDept" required>
+            </div>
+            <div class="form-group">
+                <label>Position:</label>
+                <input type="text" id="staffPosition" required>
+            </div>
+            <div class="form-group">
+                <label>Academic Year:</label>
+                <input type="text" id="staffYear" value="2024-2025">
+            </div>
+            <div class="form-group">
+                <label>Trimester:</label>
+                <select id="staffTrimester">
+                    <option value="first">First</option>
+                    <option value="second">Second</option>
+                    <option value="third">Third</option>
+                </select>
+            </div>
+            <button type="submit" class="btn-primary">Onboard Staff</button>
+        </form>
+        <div id="staffResult" class="result"></div>
+    </div>
+
+    <!-- Grade Management Tab -->
+    <div id="grade" class="tab-content">
+        <h2>Grade Management</h2>
+        <form id="gradeForm" onsubmit="updateGrade(event)">
+            <div class="form-group">
+                <label>Student Name:</label>
+                <input type="text" id="gradeStudentName" required>
+            </div>
+            <div class="form-group">
+                <label>Old Grade (0-100):</label>
+                <input type="number" id="oldGrade" min="0" max="100" required>
+            </div>
+            <div class="form-group">
+                <label>New Grade (0-100):</label>
+                <input type="number" id="newGrade" min="0" max="100" required>
+            </div>
+            <div class="form-group">
+                <label>Notify:</label>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="notifyStudent" checked> Student
+                </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="notifyParent" checked> Parent
+                </label>
+            </div>
+            <button type="submit" class="btn-primary">Update Grade</button>
+        </form>
+        <div id="gradeResult" class="result"></div>
+    </div>
+
+    <!-- Attendance Tab -->
+    <div id="attendance" class="tab-content">
+        <h2>Attendance Calculation</h2>
+        <form id="attendanceForm" onsubmit="calculateAttendance(event)">
+            <div class="form-group">
+                <label>Student Name:</label>
+                <input type="text" id="attendanceStudentName" required>
+            </div>
+            <div class="form-group">
+                <label>Present Days:</label>
+                <input type="number" id="presentDays" min="0" required>
+            </div>
+            <div class="form-group">
+                <label>Total Days:</label>
+                <input type="number" id="totalDays" min="1" required>
+            </div>
+            <div class="form-group">
+                <label>Strategy:</label>
+                <select id="attendanceStrategy">
+                    <option value="percentage">Percentage</option>
+                    <option value="passFail">Pass/Fail</option>
+                </select>
+            </div>
+            <button type="submit" class="btn-primary">Calculate Attendance</button>
+        </form>
+        <div id="attendanceResult" class="result"></div>
+    </div>
+
+    <!-- User Roles Tab -->
+    <div id="user" class="tab-content">
+        <h2>User Role Management</h2>
+        <form id="userForm" onsubmit="createUser(event)">
+            <div class="form-group">
+                <label>Select Roles:</label>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="roleTeacher" value="teacher"> Teacher
+                </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="roleAdmin" value="admin"> Admin
+                </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="roleAdvisor" value="advisor"> Class Advisor
+                </label>
+            </div>
+            <button type="submit" class="btn-primary">Create User</button>
+        </form>
+        <div id="userResult" class="result"></div>
+    </div>
+
+    <!-- System Demo Tab -->
+    <div id="demo" class="tab-content">
+        <h2>System Demonstration</h2>
+        <p>Run a complete demonstration of all system features including student registration, grade management, attendance tracking, and user management.</p>
+        <button onclick="runDemo()" class="btn-primary">Run System Demo</button>
+        <div id="demoResult" class="result"></div>
+    </div>
+
+    <!-- Output Area -->
+    <div class="output-section">
+        <h3>System Output</h3>
+        <div id="outputArea" class="output-area"></div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
+
