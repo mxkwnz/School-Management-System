@@ -1,21 +1,46 @@
 package school.web;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 import school.SchoolManagementService;
 import school.adapter.NumericGrade;
 import school.decorator.User;
 import school.facade.SchoolFacade;
+import school.model.Attendance;
+import school.model.Grade;
+import school.service.AuthenticationService;
 import com.sun.net.httpserver.HttpExchange;
 import org.json.JSONObject;
 import org.json.JSONArray;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
+@Component
 public class SchoolWebController {
+    @Autowired
+    private SchoolFacade schoolFacade;
+    
+    @Autowired
+    private AuthenticationService authenticationService;
+    
     private SchoolManagementService schoolService;
 
     public SchoolWebController() {
-        this.schoolService = new SchoolFacade();
+        // Will be injected by Spring
+    }
+
+    private SchoolManagementService getSchoolService() {
+        if (schoolService == null && schoolFacade != null) {
+            schoolService = schoolFacade;
+        } else if (schoolService == null) {
+            schoolService = new SchoolFacade();
+        }
+        return schoolService;
     }
 
     public void handleStudentRegistration(HttpExchange exchange) throws IOException {
@@ -40,8 +65,7 @@ public class SchoolWebController {
             PrintStream ps = new PrintStream(baos);
             PrintStream oldOut = System.out;
             System.setOut(ps);
-            schoolService.completeStudentRegistration(id, name, major, year, trimester);
-            schoolService.completeStudentRegistration(id, name, major, year, trimester);
+            getSchoolService().completeStudentRegistration(id, name, major, year, trimester);
             System.setOut(oldOut);
             String output = baos.toString();
 
@@ -80,7 +104,7 @@ public class SchoolWebController {
             PrintStream ps = new PrintStream(baos);
             PrintStream oldOut = System.out;
             System.setOut(ps);
-            schoolService.completeStaffOnboarding(id, name, dept, position, year, trimester);
+            getSchoolService().completeStaffOnboarding(id, name, dept, position, year, trimester);
             System.setOut(oldOut);
             String output = baos.toString();
 
@@ -115,17 +139,17 @@ public class SchoolWebController {
             boolean notifyParent = json.optBoolean("notifyParent", true);
 
             if (notifyStudent) {
-                schoolService.registerGradeObserver("student");
+                getSchoolService().registerGradeObserver("student");
             }
             if (notifyParent) {
-                schoolService.registerGradeObserver("parent");
+                getSchoolService().registerGradeObserver("parent");
             }
 
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             PrintStream ps = new PrintStream(baos);
             PrintStream oldOut = System.out;
             System.setOut(ps);
-            schoolService.updateGrade(studentName, new NumericGrade(oldScore), newScore);
+            getSchoolService().updateGrade(studentName, new NumericGrade(oldScore), newScore);
             System.setOut(oldOut);
             String output = baos.toString();
 
@@ -163,12 +187,12 @@ public class SchoolWebController {
 
             JSONObject response = new JSONObject();
             if ("percentage".equalsIgnoreCase(strategy)) {
-                double result = schoolService.calculateAttendancePercentage(studentName, presentDays, totalDays);
+                double result = getSchoolService().calculateAttendancePercentage(studentName, presentDays, totalDays);
                 response.put("result", result);
                 response.put("resultType", "percentage");
                 response.put("formatted", String.format("%.2f%%", result));
             } else {
-                boolean passed = schoolService.checkAttendancePassFail(studentName, presentDays, totalDays);
+                boolean passed = getSchoolService().checkAttendancePassFail(studentName, presentDays, totalDays);
                 response.put("result", passed);
                 response.put("resultType", "passFail");
                 response.put("formatted", passed ? "PASS" : "FAIL");
@@ -205,8 +229,8 @@ public class SchoolWebController {
             PrintStream ps = new PrintStream(baos);
             PrintStream oldOut = System.out;
             System.setOut(ps);
-            User user = schoolService.createUserWithRole("basic", roles);
-            schoolService.displayUserAccess(user);
+            User user = getSchoolService().createUserWithRole("basic", roles);
+            getSchoolService().displayUserAccess(user);
             System.setOut(oldOut);
             String output = baos.toString();
 
@@ -242,7 +266,7 @@ public class SchoolWebController {
             PrintStream ps = new PrintStream(baos);
             PrintStream oldOut = System.out;
             System.setOut(ps);
-            schoolService.enrollStudent(id, name, major);
+            getSchoolService().enrollStudent(id, name, major);
             System.setOut(oldOut);
             String output = baos.toString();
 
@@ -277,7 +301,7 @@ public class SchoolWebController {
             PrintStream ps = new PrintStream(baos);
             PrintStream oldOut = System.out;
             System.setOut(ps);
-            schoolService.hireStaff(id, name, dept, position);
+            getSchoolService().hireStaff(id, name, dept, position);
             System.setOut(oldOut);
             String output = baos.toString();
 
@@ -311,7 +335,7 @@ public class SchoolWebController {
             PrintStream ps = new PrintStream(baos);
             PrintStream oldOut = System.out;
             System.setOut(ps);
-            schoolService.notifyGradeChange(studentName, oldScore, newScore);
+            getSchoolService().notifyGradeChange(studentName, oldScore, newScore);
             System.setOut(oldOut);
             String output = baos.toString();
 
@@ -345,7 +369,7 @@ public class SchoolWebController {
             PrintStream ps = new PrintStream(baos);
             PrintStream oldOut = System.out;
             System.setOut(ps);
-            schoolService.createStudentTimetable(studentName, year, trimester);
+            getSchoolService().createStudentTimetable(studentName, year, trimester);
             System.setOut(oldOut);
             String output = baos.toString();
 
@@ -378,7 +402,7 @@ public class SchoolWebController {
             PrintStream ps = new PrintStream(baos);
             PrintStream oldOut = System.out;
             System.setOut(ps);
-            schoolService.createCustomTimetable(year, trimester);
+            getSchoolService().createCustomTimetable(year, trimester);
             System.setOut(oldOut);
             String output = baos.toString();
 
@@ -411,7 +435,7 @@ public class SchoolWebController {
             PrintStream ps = new PrintStream(baos);
             PrintStream oldOut = System.out;
             System.setOut(ps);
-            schoolService.createPartTimeTimetable(year, trimester);
+            getSchoolService().createPartTimeTimetable(year, trimester);
             System.setOut(oldOut);
             String output = baos.toString();
 
@@ -439,7 +463,7 @@ public class SchoolWebController {
             PrintStream ps = new PrintStream(baos);
             PrintStream oldOut = System.out;
             System.setOut(ps);
-            schoolService.demonstrateCompleteSystem();
+            getSchoolService().demonstrateCompleteSystem();
             System.setOut(oldOut);
             String output = baos.toString();
 
@@ -489,6 +513,211 @@ public class SchoolWebController {
         error.put("success", false);
         error.put("error", message);
         return error.toString();
+    }
+
+    // New authentication endpoints
+    public void handleLogin(HttpExchange exchange) throws IOException {
+        if ("OPTIONS".equals(exchange.getRequestMethod())) {
+            handleOptions(exchange);
+            return;
+        }
+        if (!"POST".equals(exchange.getRequestMethod())) {
+            sendResponse(exchange, 405, createErrorResponse("Method not allowed"));
+            return;
+        }
+        try {
+            String requestBody = readRequestBody(exchange);
+            JSONObject json = new JSONObject(requestBody);
+            String email = json.getString("email");
+            String password = json.getString("password");
+
+            Optional<school.model.User> userOpt = authenticationService.login(email, password);
+            if (userOpt.isPresent()) {
+                school.model.User user = userOpt.get();
+                Set<String> roles = authenticationService.getUserRoles(user);
+                
+                JSONObject response = new JSONObject();
+                response.put("success", true);
+                response.put("message", "Login successful");
+                response.put("userId", user.getUserId());
+                response.put("firstName", user.getFirstName());
+                response.put("lastName", user.getLastName());
+                response.put("name", user.getName());
+                response.put("email", user.getEmail());
+                response.put("roles", new JSONArray(roles));
+                sendResponse(exchange, 200, response.toString());
+            } else {
+                sendResponse(exchange, 401, createErrorResponse("Invalid email or password"));
+            }
+        } catch (Exception e) {
+            sendResponse(exchange, 400, createErrorResponse(e.getMessage()));
+        }
+    }
+
+    public void handleRegister(HttpExchange exchange) throws IOException {
+        if ("OPTIONS".equals(exchange.getRequestMethod())) {
+            handleOptions(exchange);
+            return;
+        }
+        if (!"POST".equals(exchange.getRequestMethod())) {
+            sendResponse(exchange, 405, createErrorResponse("Method not allowed"));
+            return;
+        }
+        try {
+            String requestBody = readRequestBody(exchange);
+            JSONObject json = new JSONObject(requestBody);
+            String userId = json.getString("userId");
+            String firstName = json.getString("firstName");
+            String lastName = json.getString("lastName");
+            String email = json.getString("email");
+            String password = json.getString("password");
+            String userType = json.getString("userType");
+            String major = json.optString("major", null);
+            String department = json.optString("department", null);
+            String position = json.optString("position", null);
+
+            school.model.User user = authenticationService.register(userId, firstName, lastName, email, password, userType, major, department, position);
+            Set<String> roles = authenticationService.getUserRoles(user);
+
+            JSONObject response = new JSONObject();
+            response.put("success", true);
+            response.put("message", "Registration successful");
+            response.put("userId", user.getUserId());
+            response.put("firstName", user.getFirstName());
+            response.put("lastName", user.getLastName());
+            response.put("name", user.getName());
+            response.put("email", user.getEmail());
+            response.put("roles", new JSONArray(roles));
+            sendResponse(exchange, 200, response.toString());
+        } catch (Exception e) {
+            sendResponse(exchange, 400, createErrorResponse(e.getMessage()));
+        }
+    }
+
+    public void handleUserGrades(HttpExchange exchange) throws IOException {
+        if ("OPTIONS".equals(exchange.getRequestMethod())) {
+            handleOptions(exchange);
+            return;
+        }
+        if (!"GET".equals(exchange.getRequestMethod())) {
+            sendResponse(exchange, 405, createErrorResponse("Method not allowed"));
+            return;
+        }
+        try {
+            String query = exchange.getRequestURI().getQuery();
+            String userId = null;
+            if (query != null) {
+                for (String param : query.split("&")) {
+                    String[] pair = param.split("=");
+                    if (pair.length == 2 && "userId".equals(pair[0])) {
+                        userId = java.net.URLDecoder.decode(pair[1], StandardCharsets.UTF_8);
+                    }
+                }
+            }
+            if (userId == null) {
+                sendResponse(exchange, 400, createErrorResponse("userId parameter required"));
+                return;
+            }
+
+            List<Grade> grades = schoolFacade.getUserGrades(userId);
+            JSONArray gradesArray = new JSONArray();
+            for (Grade grade : grades) {
+                JSONObject gradeJson = new JSONObject();
+                gradeJson.put("id", grade.getId());
+                gradeJson.put("subject", grade.getSubject());
+                gradeJson.put("score", grade.getScore());
+                gradeJson.put("createdAt", grade.getCreatedAt().toString());
+                gradeJson.put("updatedAt", grade.getUpdatedAt().toString());
+                gradesArray.put(gradeJson);
+            }
+
+            JSONObject response = new JSONObject();
+            response.put("success", true);
+            response.put("grades", gradesArray);
+            sendResponse(exchange, 200, response.toString());
+        } catch (Exception e) {
+            sendResponse(exchange, 400, createErrorResponse(e.getMessage()));
+        }
+    }
+
+    public void handleUserAttendance(HttpExchange exchange) throws IOException {
+        if ("OPTIONS".equals(exchange.getRequestMethod())) {
+            handleOptions(exchange);
+            return;
+        }
+        if (!"GET".equals(exchange.getRequestMethod())) {
+            sendResponse(exchange, 405, createErrorResponse("Method not allowed"));
+            return;
+        }
+        try {
+            String query = exchange.getRequestURI().getQuery();
+            String userId = null;
+            if (query != null) {
+                for (String param : query.split("&")) {
+                    String[] pair = param.split("=");
+                    if (pair.length == 2 && "userId".equals(pair[0])) {
+                        userId = java.net.URLDecoder.decode(pair[1], StandardCharsets.UTF_8);
+                    }
+                }
+            }
+            if (userId == null) {
+                sendResponse(exchange, 400, createErrorResponse("userId parameter required"));
+                return;
+            }
+
+            List<Attendance> attendanceList = schoolFacade.getUserAttendance(userId);
+            JSONArray attendanceArray = new JSONArray();
+            int presentCount = 0;
+            for (Attendance att : attendanceList) {
+                JSONObject attJson = new JSONObject();
+                attJson.put("id", att.getId());
+                attJson.put("date", att.getDate().toString());
+                attJson.put("present", att.getPresent());
+                attJson.put("subject", att.getSubject());
+                attendanceArray.put(attJson);
+                if (att.getPresent()) presentCount++;
+            }
+
+            JSONObject response = new JSONObject();
+            response.put("success", true);
+            response.put("attendance", attendanceArray);
+            response.put("totalDays", attendanceList.size());
+            response.put("presentDays", presentCount);
+            response.put("percentage", attendanceList.size() > 0 ? (presentCount * 100.0 / attendanceList.size()) : 0);
+            sendResponse(exchange, 200, response.toString());
+        } catch (Exception e) {
+            sendResponse(exchange, 400, createErrorResponse(e.getMessage()));
+        }
+    }
+
+    public void handleRecordAttendance(HttpExchange exchange) throws IOException {
+        if ("OPTIONS".equals(exchange.getRequestMethod())) {
+            handleOptions(exchange);
+            return;
+        }
+        if (!"POST".equals(exchange.getRequestMethod())) {
+            sendResponse(exchange, 405, createErrorResponse("Method not allowed"));
+            return;
+        }
+        try {
+            String requestBody = readRequestBody(exchange);
+            JSONObject json = new JSONObject(requestBody);
+            String studentId = json.getString("studentId");
+            String studentName = json.getString("studentName");
+            String subject = json.getString("subject");
+            String dateStr = json.getString("date");
+            boolean present = json.getBoolean("present");
+
+            LocalDate date = LocalDate.parse(dateStr);
+            schoolFacade.recordAttendance(studentId, studentName, date, present, subject);
+
+            JSONObject response = new JSONObject();
+            response.put("success", true);
+            response.put("message", "Attendance recorded successfully");
+            sendResponse(exchange, 200, response.toString());
+        } catch (Exception e) {
+            sendResponse(exchange, 400, createErrorResponse(e.getMessage()));
+        }
     }
 }
 

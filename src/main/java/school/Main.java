@@ -4,6 +4,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
 import school.facade.SchoolFacade;
+import school.web.SchoolWebController;
 import school.web.WebServer;
 
 @SpringBootApplication
@@ -13,6 +14,7 @@ public class Main {
 
         ConfigurableApplicationContext context = SpringApplication.run(Main.class, args);
         SchoolFacade facade = context.getBean(SchoolFacade.class);
+        SchoolWebController controller = context.getBean(SchoolWebController.class);
 
         int port = 8080;
         if (args.length > 0) {
@@ -20,7 +22,7 @@ public class Main {
         }
 
         try {
-            WebServer server = new WebServer(port);
+            WebServer server = new WebServer(port, controller);
             server.start();
 
             System.out.println("School Management System");

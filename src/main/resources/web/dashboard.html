@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - School Management System</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .dashboard-header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .user-name-part {
+            font-weight: 500;
+        }
+        .logout-btn {
+            background: #e74c3c;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .dashboard-content {
+            padding: 30px;
+        }
+        .role-section {
+            display: none;
+        }
+        .role-section.active {
+            display: block;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            border-left: 4px solid #3498db;
+        }
+        .stat-card h3 {
+            margin: 0 0 10px 0;
+            color: #2c3e50;
+        }
+        .stat-card .value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #3498db;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+        .badge.present {
+            background: #d5f4e6;
+            color: #1e8449;
+        }
+        .badge.absent {
+            background: #fadbd8;
+            color: #c0392b;
+        }
+    </style>
+</head>
+<body>
+<div class="dashboard-header">
+    <h1>School Management System</h1>
+    <div class="user-info">
+        <span id="userFirstName" class="user-name-part"></span>
+        <span id="userLastName" class="user-name-part"></span>
+        <span id="userRole" class="badge"></span>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+</div>
+
+<div class="dashboard-content">
+    <!-- Student Dashboard -->
+    <div id="studentDashboard" class="role-section">
+        <h2>Student Dashboard</h2>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Overall Attendance</h3>
+                <div class="value" id="studentAttendance">-</div>
+                <p>%</p>
+            </div>
+            <div class="stat-card">
+                <h3>Total Subjects</h3>
+                <div class="value" id="studentSubjects">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>Average Grade</h3>
+                <div class="value" id="studentAvgGrade">-</div>
+            </div>
+        </div>
+
+        <h3>My Grades</h3>
+        <table id="gradesTable">
+            <thead>
+                <tr>
+                    <th>Subject</th>
+                    <th>Score</th>
+                    <th>Grade</th>
+                    <th>Last Updated</th>
+                </tr>
+            </thead>
+            <tbody id="gradesBody">
+            </tbody>
+        </table>
+
+        <h3 style="margin-top: 30px;">My Attendance</h3>
+        <table id="attendanceTable">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Subject</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="attendanceBody">
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Teacher/Staff Dashboard -->
+    <div id="teacherDashboard" class="role-section">
+        <h2>Teacher Dashboard</h2>
+        <p>Welcome to the teacher dashboard. You can manage students, grades, and attendance.</p>
+        <div class="tabs" style="margin-top: 20px;">
+            <button class="tab-button active" onclick="showTeacherTab('manage')">Manage Students</button>
+            <button class="tab-button" onclick="showTeacherTab('grades')">Update Grades</button>
+            <button class="tab-button" onclick="showTeacherTab('attendance')">Record Attendance</button>
+        </div>
+        
+        <div id="teacherManage" class="tab-content active">
+            <h3>Student Management</h3>
+            <p>Use the admin panel below to manage students.</p>
+        </div>
+        
+        <div id="teacherGrades" class="tab-content">
+            <h3>Update Student Grades</h3>
+            <form id="updateGradeForm" onsubmit="updateStudentGrade(event)">
+                <div class="form-group">
+                    <label>Student ID:</label>
+                    <input type="text" id="gradeStudentId" required>
+                </div>
+                <div class="form-group">
+                    <label>Subject:</label>
+                    <input type="text" id="gradeSubject" required>
+                </div>
+                <div class="form-group">
+                    <label>Score (0-100):</label>
+                    <input type="number" id="gradeScore" min="0" max="100" required>
+                </div>
+                <button type="submit" class="btn-primary">Update Grade</button>
+            </form>
+        </div>
+        
+        <div id="teacherAttendance" class="tab-content">
+            <h3>Record Attendance</h3>
+            <form id="recordAttendanceForm" onsubmit="recordAttendance(event)">
+                <div class="form-group">
+                    <label>Student ID:</label>
+                    <input type="text" id="attStudentId" required>
+                </div>
+                <div class="form-group">
+                    <label>Student Name:</label>
+                    <input type="text" id="attStudentName" required>
+                </div>
+                <div class="form-group">
+                    <label>Subject:</label>
+                    <input type="text" id="attSubject" required>
+                </div>
+                <div class="form-group">
+                    <label>Date:</label>
+                    <input type="date" id="attDate" required>
+                </div>
+                <div class="form-group">
+                    <label>Present:</label>
+                    <input type="checkbox" id="attPresent" checked>
+                </div>
+                <button type="submit" class="btn-primary">Record Attendance</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Admin Dashboard -->
+    <div id="adminDashboard" class="role-section">
+        <h2>Admin Dashboard</h2>
+        <p>Welcome to the admin dashboard. Full system access available.</p>
+        <div class="tabs" style="margin-top: 20px;">
+            <button class="tab-button active" onclick="showAdminTab('students')">Student Registration</button>
+            <button class="tab-button" onclick="showAdminTab('staff')">Staff Onboarding</button>
+            <button class="tab-button" onclick="showAdminTab('system')">System Demo</button>
+        </div>
+        
+        <div id="adminStudents" class="tab-content active">
+            <h3>Student Registration</h3>
+            <form id="adminStudentForm" onsubmit="registerStudent(event)">
+                <div class="form-group">
+                    <label>Student ID:</label>
+                    <input type="text" id="adminStudentId" required>
+                </div>
+                <div class="form-group">
+                    <label>Name:</label>
+                    <input type="text" id="adminStudentName" required>
+                </div>
+                <div class="form-group">
+                    <label>Major:</label>
+                    <input type="text" id="adminStudentMajor" required>
+                </div>
+                <button type="submit" class="btn-primary">Register Student</button>
+            </form>
+        </div>
+        
+        <div id="adminStaff" class="tab-content">
+            <h3>Staff Onboarding</h3>
+            <form id="adminStaffForm" onsubmit="onboardStaff(event)">
+                <div class="form-group">
+                    <label>Staff ID:</label>
+                    <input type="text" id="adminStaffId" required>
+                </div>
+                <div class="form-group">
+                    <label>Name:</label>
+                    <input type="text" id="adminStaffName" required>
+                </div>
+                <div class="form-group">
+                    <label>Department:</label>
+                    <input type="text" id="adminStaffDept" required>
+                </div>
+                <div class="form-group">
+                    <label>Position:</label>
+                    <input type="text" id="adminStaffPosition" required>
+                </div>
+                <button type="submit" class="btn-primary">Onboard Staff</button>
+            </form>
+        </div>
+        
+        <div id="adminSystem" class="tab-content">
+            <h3>System Demo</h3>
+            <button onclick="runSystemDemo()" class="btn-primary">Run System Demo</button>
+            <div id="demoOutput" class="result" style="margin-top: 20px;"></div>
+        </div>
+    </div>
+</div>
+
+<script src="dashboard.js"></script>
+</body>
+</html>
+

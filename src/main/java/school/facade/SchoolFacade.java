@@ -1,17 +1,42 @@
 package school.facade;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 import school.SchoolManagementService;
 import school.adapter.GradeAdapter;
 import school.adapter.NumericGrade;
 import school.decorator.*;
+import school.model.Attendance;
+import school.model.Grade;
 import school.observer.GradeNotifier;
 import school.observer.ParentObserver;
 import school.observer.StudentObserver;
 import school.factory.*;
 import school.builder.*;
+import school.repository.AttendanceRepository;
+import school.repository.GradeRepository;
+import school.repository.UserRepository;
+import school.service.AuthenticationService;
 import school.strategy.*;
 
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+
+@Component
 public class SchoolFacade implements SchoolManagementService {
+    @Autowired
+    private UserRepository userRepository;
+    
+    @Autowired
+    private GradeRepository gradeRepository;
+    
+    @Autowired
+    private AttendanceRepository attendanceRepository;
+    
+    @Autowired
+    private AuthenticationService authenticationService;
+    
     private GradeNotifier gradeNotifier = new GradeNotifier();
     private TimetableDirector timetableDirector = new TimetableDirector();
 
@@ -80,6 +105,24 @@ public class SchoolFacade implements SchoolManagementService {
         System.out.println("Original numeric grade:");
         newGrade.showScore();
         new GradeAdapter(newGrade).adaptGrade();
+        
+        // Save to database - find student and update/create grade
+        Optional<school.model.User> studentOpt = userRepository.findByUserId(studentName);
+        if (studentOpt.isPresent()) {
+            school.model.User student = studentOpt.get();
+            // For demo, we'll use a default subject or get from context
+            String subject = "General"; // In real app, this would come from context
+            Optional<Grade> gradeOpt = gradeRepository.findByStudentIdAndSubject(student.getUserId(), subject);
+            Grade grade;
+            if (gradeOpt.isPresent()) {
+                grade = gradeOpt.get();
+                grade.setScore(newScore);
+            } else {
+                grade = new Grade(student.getUserId(), studentName, subject, newScore);
+            }
+            gradeRepository.save(grade);
+        }
+        
         gradeNotifier.setGrade(studentName, oldScore, newScore);
     }
 
@@ -133,7 +176,20 @@ public class SchoolFacade implements SchoolManagementService {
     public void completeStudentRegistration(String id, String name, String major, String year, String trimester) {
         System.out.println("Student Registration Process");
 
-        Profile student = enrollStudent(id, name, major);
+        enrollStudent(id, name, major);
+
+        String email = id + "@school.edu";
+        String password = "Test123!";
+        // Split name into first and last name
+        String[] nameParts = name.split(" ", 2);
+        String firstName = nameParts.length > 0 ? nameParts[0] : name;
+        String lastName = nameParts.length > 1 ? nameParts[1] : "";
+        try {
+            school.model.User dbUser = authenticationService.register(id, firstName, lastName, email, password, "student", major, null, null);
+            System.out.println("User saved to database with ID: " + dbUser.getId());
+        } catch (Exception e) {
+            System.out.println("User already exists or error: " + e.getMessage());
+        }
 
         gradeNotifier.addObserver(studentObserver);
         gradeNotifier.addObserver(parentObserver);
@@ -148,7 +204,20 @@ public class SchoolFacade implements SchoolManagementService {
     public void completeStaffOnboarding(String id, String name, String dept, String position, String year, String trimester) {
         System.out.println("Staff Onboarding Process");
 
-        Profile staff = hireStaff(id, name, dept, position);
+        hireStaff(id, name, dept, position);
+
+        String email = id + "@school.edu";
+        String password = "Test123!";
+        // Split name into first and last name
+        String[] nameParts = name.split(" ", 2);
+        String firstName = nameParts.length > 0 ? nameParts[0] : name;
+        String lastName = nameParts.length > 1 ? nameParts[1] : "";
+        try {
+            school.model.User dbUser = authenticationService.register(id, firstName, lastName, email, password, "teacher", null, dept, position);
+            System.out.println("Staff saved to database with ID: " + dbUser.getId());
+        } catch (Exception e) {
+            System.out.println("User already exists or error: " + e.getMessage());
+        }
 
         Timetable schedule = new ConcreteTimetableBuilder()
                 .setAcademicYear(year)
@@ -171,6 +240,17 @@ public class SchoolFacade implements SchoolManagementService {
     public double calculateAttendancePercentage(String studentName, int presentDays, int totalDays) {
         System.out.println("\nCalculating Attendance Percentage for " + studentName);
         System.out.println("Using Percentage Attendance Strategy");
+
+        Optional<school.model.User> studentOpt = userRepository.findByUserId(studentName);
+        if (studentOpt.isPresent()) {
+            school.model.User student = studentOpt.get();
+            long actualPresent = attendanceRepository.countByStudentIdAndPresentTrue(student.getUserId());
+            long actualTotal = attendanceRepository.countByStudentId(student.getUserId());
+            if (actualTotal > 0) {
+                presentDays = (int) actualPresent;
+                totalDays = (int) actualTotal;
+            }
+        }
 
         AttendanceStrategy strategy = new PercentageAttendanceStrategy();
         AttendanceCalculator calculator = new AttendanceCalculator(strategy);
@@ -267,5 +347,18 @@ public class SchoolFacade implements SchoolManagementService {
         Timetable timetable = timetableDirector.constructPartTimeTimetable(builder);
         System.out.println("Part-time timetable created with " + timetable.getEntries().size() + " entries.");
         return timetable;
+    }
+
+    public List<Grade> getUserGrades(String userId) {
+        return gradeRepository.findByStudentId(userId);
+    }
+
+    public List<Attendance> getUserAttendance(String userId) {
+        return attendanceRepository.findByStudentId(userId);
+    }
+
+    public void recordAttendance(String studentId, String studentName, LocalDate date, boolean present, String subject) {
+        Attendance attendance = new Attendance(studentId, studentName, date, present, subject);
+        attendanceRepository.save(attendance);
     }
 }

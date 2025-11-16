@@ -16,6 +16,11 @@ public class WebServer {
         this.controller = new SchoolWebController();
     }
 
+    public WebServer(int port, SchoolWebController controller) {
+        this.port = port;
+        this.controller = controller;
+    }
+
     public void start() throws IOException {
         server = HttpServer.create(new InetSocketAddress(port), 0);
         server.createContext("/api/students/register", controller::handleStudentRegistration);
@@ -30,6 +35,11 @@ public class WebServer {
         server.createContext("/api/attendance/calculate", controller::handleAttendanceCalculation);
         server.createContext("/api/users/create", controller::handleUserCreation);
         server.createContext("/api/demo/run", controller::handleSystemDemo);
+        server.createContext("/api/auth/login", controller::handleLogin);
+        server.createContext("/api/auth/register", controller::handleRegister);
+        server.createContext("/api/user/grades", controller::handleUserGrades);
+        server.createContext("/api/user/attendance", controller::handleUserAttendance);
+        server.createContext("/api/attendance/record", controller::handleRecordAttendance);
         server.createContext("/", this::handleStaticFiles);
         server.setExecutor(null);
         server.start();

@@ -15,10 +15,25 @@ public class User {
     private String userId;
 
     @Column(nullable = false)
-    private String name;
+    private String firstName;
+
+    @Column(nullable = false)
+    private String lastName;
 
     @Column(nullable = false, unique = true)
     private String email;
+
+    @Column(nullable = false)
+    private String password;
+
+    @Column
+    private String major;
+
+    @Column
+    private String department;
+
+    @Column
+    private String position;
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
@@ -30,10 +45,19 @@ public class User {
 
     public User() {}
 
-    public User(String userId, String name, String email) {
+    public User(String userId, String firstName, String lastName, String email) {
         this.userId = userId;
-        this.name = name;
+        this.firstName = firstName;
+        this.lastName = lastName;
         this.email = email;
+    }
+
+    public User(String userId, String firstName, String lastName, String email, String password) {
+        this.userId = userId;
+        this.firstName = firstName;
+        this.lastName = lastName;
+        this.email = email;
+        this.password = password;
     }
 
     public Long getId() {
@@ -52,12 +76,24 @@ public class User {
         this.userId = userId;
     }
 
-    public String getName() {
-        return name;
+    public String getFirstName() {
+        return firstName;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
+    }
+
+    public String getLastName() {
+        return lastName;
+    }
+
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
+    }
+
+    public String getName() {
+        return firstName + " " + lastName;
     }
 
     public String getEmail() {
@@ -78,6 +114,38 @@ public class User {
 
     public void addRole(Role role) {
         this.roles.add(role);
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public String getMajor() {
+        return major;
+    }
+
+    public void setMajor(String major) {
+        this.major = major;
+    }
+
+    public String getDepartment() {
+        return department;
+    }
+
+    public void setDepartment(String department) {
+        this.department = department;
+    }
+
+    public String getPosition() {
+        return position;
+    }
+
+    public void setPosition(String position) {
+        this.position = position;
     }
 }
 
