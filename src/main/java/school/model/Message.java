@@ -11,10 +11,6 @@ public class Message {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /**
-     * Sender and receiver reference the unique numeric user ID (User.id),
-     * not the string userId field.
-     */
     @Column(name = "sender_user_pk", nullable = false)
     private Long senderUserPk;
 

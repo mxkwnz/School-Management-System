@@ -189,12 +189,12 @@ async function handleRegister(event) {
             window.location.href = 'dashboard.html';
         } else {
             resultDiv.className = 'result error';
-            resultDiv.innerHTML = `<strong>✗ Error:</strong> ${result.error}`;
+            resultDiv.innerHTML = `<strong>Error:</strong> ${result.error}`;
             resultDiv.style.display = 'block';
         }
     } catch (error) {
         resultDiv.className = 'result error';
-        resultDiv.innerHTML = `<strong>✗ Error:</strong> ${error.message}`;
+        resultDiv.innerHTML = `<strong>Error:</strong> ${error.message}`;
         resultDiv.style.display = 'block';
     }
 }

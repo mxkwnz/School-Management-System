@@ -43,17 +43,17 @@ async function registerStudent(event) {
         if (result.success) {
             resultDiv.className = 'result success';
             resultDiv.innerHTML = `
-                <strong>✓ ${result.message}</strong>
+                <strong>${result.message}</strong>
                 <pre>${result.output}</pre>
             `;
             appendOutput(result.output);
         } else {
             resultDiv.className = 'result error';
-            resultDiv.innerHTML = `<strong>✗ Error:</strong> ${result.error}`;
+            resultDiv.innerHTML = `<strong>Error:</strong> ${result.error}`;
         }
     } catch (error) {
         resultDiv.className = 'result error';
-        resultDiv.innerHTML = `<strong>✗ Error:</strong> ${error.message}`;
+        resultDiv.innerHTML = `<strong>Error:</strong> ${error.message}`;
     }
 }
 
@@ -87,17 +87,17 @@ async function onboardStaff(event) {
         if (result.success) {
             resultDiv.className = 'result success';
             resultDiv.innerHTML = `
-                <strong>✓ ${result.message}</strong>
+                <strong>${result.message}</strong>
                 <pre>${result.output}</pre>
             `;
             appendOutput(result.output);
         } else {
             resultDiv.className = 'result error';
-            resultDiv.innerHTML = `<strong>✗ Error:</strong> ${result.error}`;
+            resultDiv.innerHTML = `<strong>Error:</strong> ${result.error}`;
         }
     } catch (error) {
         resultDiv.className = 'result error';
-        resultDiv.innerHTML = `<strong>✗ Error:</strong> ${error.message}`;
+        resultDiv.innerHTML = `<strong>Error:</strong> ${error.message}`;
     }
 }
 
@@ -129,17 +129,17 @@ async function updateGrade(event) {
         if (result.success) {
             resultDiv.className = 'result success';
             resultDiv.innerHTML = `
-                <strong>✓ ${result.message}</strong>
+                <strong>${result.message}</strong>
                 <pre>${result.output}</pre>
             `;
             appendOutput(result.output);
         } else {
             resultDiv.className = 'result error';
-            resultDiv.innerHTML = `<strong>✗ Error:</strong> ${result.error}`;
+            resultDiv.innerHTML = `<strong>Error:</strong> ${result.error}`;
         }
     } catch (error) {
         resultDiv.className = 'result error';
-        resultDiv.innerHTML = `<strong>✗ Error:</strong> ${error.message}`;
+        resultDiv.innerHTML = `<strong>Error:</strong> ${error.message}`;
     }
 }
 
@@ -176,17 +176,17 @@ async function calculateAttendance(event) {
                 resultText = `Status: ${result.formatted}`;
             }
             resultDiv.innerHTML = `
-                <strong>✓ ${resultText}</strong>
+                <strong>${resultText}</strong>
                 <pre>${result.output}</pre>
             `;
             appendOutput(result.output);
         } else {
             resultDiv.className = 'result error';
-            resultDiv.innerHTML = `<strong>✗ Error:</strong> ${result.error}`;
+            resultDiv.innerHTML = `<strong>Error:</strong> ${result.error}`;
         }
     } catch (error) {
         resultDiv.className = 'result error';
-        resultDiv.innerHTML = `<strong>✗ Error:</strong> ${error.message}`;
+        resultDiv.innerHTML = `<strong>Error:</strong> ${error.message}`;
     }
 }
 
@@ -203,7 +203,7 @@ async function createUser(event) {
 
     if (roles.length === 0) {
         resultDiv.className = 'result error';
-        resultDiv.innerHTML = '<strong>✗ Error:</strong> Please select at least one role';
+        resultDiv.innerHTML = '<strong>Error:</strong> Please select at least one role';
         return;
     }
 
@@ -223,7 +223,7 @@ async function createUser(event) {
         if (result.success) {
             resultDiv.className = 'result success';
             resultDiv.innerHTML = `
-                <strong>✓ ${result.message}</strong><br>
+                <strong>${result.message}</strong><br>
                 <strong>Description:</strong> ${result.description}<br>
                 <strong>Access Level:</strong> ${result.accessLevel}
                 <pre>${result.output}</pre>
@@ -231,11 +231,11 @@ async function createUser(event) {
             appendOutput(result.output);
         } else {
             resultDiv.className = 'result error';
-            resultDiv.innerHTML = `<strong>✗ Error:</strong> ${result.error}`;
+            resultDiv.innerHTML = `<strong>Error:</strong> ${result.error}`;
         }
     } catch (error) {
         resultDiv.className = 'result error';
-        resultDiv.innerHTML = `<strong>✗ Error:</strong> ${error.message}`;
+        resultDiv.innerHTML = `<strong>Error:</strong> ${error.message}`;
     }
 }
 
