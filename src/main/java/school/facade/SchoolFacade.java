@@ -19,8 +19,12 @@ import school.repository.GradeRepository;
 import school.repository.NotificationRepository;
 import school.repository.ParentStudentRepository;
 import school.repository.UserRepository;
+import school.repository.SubjectRepository;
+import school.repository.MessageRepository;
 import school.model.Notification;
 import school.model.ParentStudent;
+import school.model.Subject;
+import school.model.Message;
 import school.service.AuthenticationService;
 import school.strategy.*;
 
@@ -45,6 +49,12 @@ public class SchoolFacade implements SchoolManagementService {
     
     @Autowired
     private ParentStudentRepository parentStudentRepository;
+
+    @Autowired
+    private SubjectRepository subjectRepository;
+
+    @Autowired
+    private MessageRepository messageRepository;
     
     @Autowired
     private AuthenticationService authenticationService;
@@ -54,35 +64,20 @@ public class SchoolFacade implements SchoolManagementService {
     
     private GradeNotifier gradeNotifier = new GradeNotifier();
     private TimetableDirector timetableDirector = new TimetableDirector();
+    private StudentObserver studentObserver = new StudentObserver();
+    private ParentObserver parentObserver = new ParentObserver();
 
     public Profile enrollStudent(String id, String name, String major) {
         ProfileFactory factory = new StudentProfileFactory(id, name, major);
         Profile student = factory.createProfile();
-        System.out.println("Student enrolled.");
         student.displayProfile();
-        if (student instanceof StudentProfile) {
-            StudentProfile sp = (StudentProfile) student;
-            System.out.println("Profile Type: " + sp.getProfileType());
-            System.out.println("Student ID: " + sp.getStudentId());
-            System.out.println("Student Name: " + sp.getName());
-            System.out.println("Major: " + sp.getMajor());
-        }
         return student;
     }
 
     public Profile hireStaff(String id, String name, String dept, String position) {
         ProfileFactory factory = new StaffProfileFactory(id, name, dept, position);
         Profile staff = factory.createProfile();
-        System.out.println("Staff member hired.");
         staff.displayProfile();
-        if (staff instanceof StaffProfile) {
-            StaffProfile sp = (StaffProfile) staff;
-            System.out.println("Profile Type: " + sp.getProfileType());
-            System.out.println("Staff ID: " + sp.getStaffId());
-            System.out.println("Staff Name: " + sp.getName());
-            System.out.println("Department: " + sp.getDepartment());
-            System.out.println("Position: " + sp.getPosition());
-        }
         return staff;
     }
 
@@ -116,48 +111,78 @@ public class SchoolFacade implements SchoolManagementService {
     @Override
     public void updateGrade(String studentName, NumericGrade oldGrade, int newScore) {
         int oldScore = oldGrade.getScore();
-        NumericGrade newGrade = new NumericGrade(newScore);
-        System.out.println("Original numeric grade:");
-        newGrade.showScore();
-        new GradeAdapter(newGrade).adaptGrade();
         
-        Optional<school.model.User> studentOpt = userRepository.findByUserId(studentName);
-        if (studentOpt.isPresent()) {
-            school.model.User student = studentOpt.get();
+        NumericGrade numericGrade = new NumericGrade(newScore);
+        numericGrade.showScore();
+        new GradeAdapter(numericGrade).adaptGrade();
+        
+        Optional<school.model.User> studentOptional = userRepository.findByUserId(studentName);
+        if (studentOptional.isPresent()) {
+            school.model.User student = studentOptional.get();
             String subject = "General";
-            Optional<Grade> gradeOpt = gradeRepository.findByStudentIdAndSubject(student.getUserId(), subject);
-            Grade grade;
-            if (gradeOpt.isPresent()) {
-                grade = gradeOpt.get();
-                grade.setScore(newScore);
-            } else {
-                grade = new Grade(student.getUserId(), studentName, subject, newScore);
-            }
+            
+            Optional<Grade> gradeOptional = gradeRepository.findByStudentIdAndSubject(student.getUserId(), subject);
+            Grade grade = gradeOptional.orElse(new Grade(student.getUserId(), studentName, subject, newScore));
+            grade.setScore(newScore);
             gradeRepository.save(grade);
         }
         
         gradeNotifier.setGrade(studentName, oldScore, newScore);
-        
         createGradeNotification(studentName, oldScore, newScore);
+    }
+
+    /**
+     * Update grade for a specific subject. The student identifier here is the string userId.
+     */
+    public void updateGradeForSubject(String studentUserId, String subject, NumericGrade oldGrade, int newScore) {
+        int oldScore = oldGrade.getScore();
+
+        NumericGrade numericGrade = new NumericGrade(newScore);
+        numericGrade.showScore();
+        new GradeAdapter(numericGrade).adaptGrade();
+
+        Optional<school.model.User> studentOptional = userRepository.findByUserId(studentUserId);
+        if (studentOptional.isPresent()) {
+            school.model.User student = studentOptional.get();
+
+            String effectiveSubject = (subject == null || subject.isEmpty()) ? "General" : subject;
+
+            Long subjectId = null;
+            if (subject != null && !subject.isEmpty()) {
+                Subject subjectEntity = subjectRepository.findByCode(subject)
+                        .orElseGet(() -> subjectRepository.save(new Subject(subject, subject)));
+                subjectId = subjectEntity.getId();
+            }
+
+            Optional<Grade> gradeOptional = gradeRepository.findByStudentIdAndSubject(student.getUserId(), effectiveSubject);
+            Grade grade = gradeOptional.orElse(
+                    subjectId != null
+                            ? new Grade(student.getUserId(), student.getName(), effectiveSubject, subjectId, newScore)
+                            : new Grade(student.getUserId(), student.getName(), effectiveSubject, newScore)
+            );
+            grade.setScore(newScore);
+            if (subjectId != null) {
+                grade.setSubjectId(subjectId);
+            }
+            gradeRepository.save(grade);
+        }
+
+        gradeNotifier.setGrade(studentUserId, oldScore, newScore);
+        createGradeNotification(studentUserId, oldScore, newScore);
     }
     
     private void createGradeNotification(String studentName, int oldScore, int newScore) {
-        Notification studentNotif = new Notification(studentName, 
-            String.format("Your grade has been updated from %d to %d", oldScore, newScore),
-            "GRADE_UPDATE");
-        notificationRepository.save(studentNotif);
+        String studentMessage = String.format("Your grade has been updated from %d to %d", oldScore, newScore);
+        Notification studentNotification = new Notification(studentName, studentMessage, "GRADE_UPDATE");
+        notificationRepository.save(studentNotification);
         
         List<ParentStudent> parentRelations = parentStudentRepository.findByStudentUserId(studentName);
         for (ParentStudent relation : parentRelations) {
-            Notification parentNotif = new Notification(relation.getParentUserId(),
-                String.format("Your child %s's grade has been updated from %d to %d", studentName, oldScore, newScore),
-                "GRADE_UPDATE");
-            notificationRepository.save(parentNotif);
+            String parentMessage = String.format("Your child %s's grade has been updated from %d to %d", studentName, oldScore, newScore);
+            Notification parentNotification = new Notification(relation.getParentUserId(), parentMessage, "GRADE_UPDATE");
+            notificationRepository.save(parentNotification);
         }
     }
-
-    private StudentObserver studentObserver = new StudentObserver();
-    private ParentObserver parentObserver = new ParentObserver();
 
     @Override
     public void registerGradeObserver(String observerType) {
@@ -204,8 +229,6 @@ public class SchoolFacade implements SchoolManagementService {
     }
 
     public void completeStudentRegistration(String id, String name, String major, String year, String trimester) {
-        System.out.println("Student Registration Process");
-
         enrollStudent(id, name, major);
 
         String email = id + "@school.edu";
@@ -213,11 +236,11 @@ public class SchoolFacade implements SchoolManagementService {
         String[] nameParts = name.split(" ", 2);
         String firstName = nameParts.length > 0 ? nameParts[0] : name;
         String lastName = nameParts.length > 1 ? nameParts[1] : "";
+        
         try {
-            school.model.User dbUser = authenticationService.register(id, firstName, lastName, email, password, "student", major, null, null);
-            System.out.println("User saved to database with ID: " + dbUser.getId());
+            authenticationService.register(id, firstName, lastName, email, password, "student", major, null, null);
         } catch (Exception e) {
-            System.out.println("User already exists or error: " + e.getMessage());
+            System.out.println("Registration error: " + e.getMessage());
         }
 
         gradeNotifier.addObserver(studentObserver);
@@ -225,17 +248,11 @@ public class SchoolFacade implements SchoolManagementService {
         if (emailNotificationObserver != null) {
             gradeNotifier.addObserver(emailNotificationObserver);
         }
-        System.out.println("Student, Parent, and Email notifications enabled.");
 
-        Timetable timetable = createStudentTimetable(name, year, trimester);
-        timetable.displayTimetable();
-
-        System.out.println("Registration complete.");
+        createStudentTimetable(name, year, trimester);
     }
 
     public void completeStaffOnboarding(String id, String name, String dept, String position, String year, String trimester) {
-        System.out.println("Staff Onboarding Process");
-
         hireStaff(id, name, dept, position);
 
         String email = id + "@school.edu";
@@ -243,14 +260,14 @@ public class SchoolFacade implements SchoolManagementService {
         String[] nameParts = name.split(" ", 2);
         String firstName = nameParts.length > 0 ? nameParts[0] : name;
         String lastName = nameParts.length > 1 ? nameParts[1] : "";
+        
         try {
-            school.model.User dbUser = authenticationService.register(id, firstName, lastName, email, password, "teacher", null, dept, position);
-            System.out.println("Staff saved to database with ID: " + dbUser.getId());
+            authenticationService.register(id, firstName, lastName, email, password, "teacher", null, dept, position);
         } catch (Exception e) {
-            System.out.println("User already exists or error: " + e.getMessage());
+            System.out.println("Registration error: " + e.getMessage());
         }
 
-        Timetable schedule = new ConcreteTimetableBuilder()
+        Timetable timetable = new ConcreteTimetableBuilder()
                 .setAcademicYear(year)
                 .setTrimester(trimester)
                 .addSubject("Software Design Patterns")
@@ -263,18 +280,13 @@ public class SchoolFacade implements SchoolManagementService {
                 .addTimeSlot("Thursday", "10:00", "12:00")
                 .build();
 
-        schedule.displayTimetable();
-
-        System.out.println("Onboarding complete.");
+        timetable.displayTimetable();
     }
 
     public double calculateAttendancePercentage(String studentName, int presentDays, int totalDays) {
-        System.out.println("\nCalculating Attendance Percentage for " + studentName);
-        System.out.println("Using Percentage Attendance Strategy");
-
-        Optional<school.model.User> studentOpt = userRepository.findByUserId(studentName);
-        if (studentOpt.isPresent()) {
-            school.model.User student = studentOpt.get();
+        Optional<school.model.User> studentOptional = userRepository.findByUserId(studentName);
+        if (studentOptional.isPresent()) {
+            school.model.User student = studentOptional.get();
             long actualPresent = attendanceRepository.countByStudentIdAndPresentTrue(student.getUserId());
             long actualTotal = attendanceRepository.countByStudentId(student.getUserId());
             if (actualTotal > 0) {
@@ -285,47 +297,29 @@ public class SchoolFacade implements SchoolManagementService {
 
         AttendanceStrategy strategy = new PercentageAttendanceStrategy();
         AttendanceCalculator calculator = new AttendanceCalculator(strategy);
-        double result = calculator.calculateAttendance(presentDays, totalDays);
+        return calculator.calculateAttendance(presentDays, totalDays);
+    }
 
-        System.out.println("Switching to Pass/Fail strategy using setStrategy()");
-        calculator.setStrategy(new PassFailAttendanceStrategy());
-        double passFailResult = calculator.calculateAttendance(presentDays, totalDays);
+    /**
+     * Calculate attendance percentage for a specific subject.
+     */
+    public double calculateAttendancePercentageBySubject(String studentUserId, Long subjectId) {
+        long actualPresent = attendanceRepository.countByStudentIdAndSubjectIdAndPresentTrue(studentUserId, subjectId);
+        long actualTotal = attendanceRepository.countByStudentIdAndSubjectId(studentUserId, subjectId);
+        if (actualTotal == 0) {
+            return 0.0;
+        }
 
-        System.out.println("Present Days: " + presentDays);
-        System.out.println("Total Days: " + totalDays);
-        System.out.println("Attendance: " + result + "%");
-        System.out.println("Pass/Fail Result: " + passFailResult);
-
-        return result;
+        AttendanceStrategy strategy = new PercentageAttendanceStrategy();
+        AttendanceCalculator calculator = new AttendanceCalculator(strategy);
+        return calculator.calculateAttendance((int) actualPresent, (int) actualTotal);
     }
 
     public boolean checkAttendancePassFail(String studentName, int presentDays, int totalDays) {
-        System.out.println("\nChecking Attendance Pass/Fail for " + studentName);
-        System.out.println("Using Pass/Fail Attendance Strategy");
-
         AttendanceStrategy strategy = new PassFailAttendanceStrategy();
         AttendanceCalculator calculator = new AttendanceCalculator(strategy);
         double result = calculator.calculateAttendance(presentDays, totalDays);
-
-        boolean passed;
-        if (result >= 100.0) {
-            passed = true;
-        } else {
-            passed = false;
-        }
-
-        System.out.println("Present Days: " + presentDays);
-        System.out.println("Total Days: " + totalDays);
-
-        String status;
-        if (passed) {
-            status = "PASS";
-        } else {
-            status = "FAIL";
-        }
-        System.out.println("Status: " + status);
-
-        return passed;
+        return result >= 100.0;
     }
 
     public void demonstrateCompleteSystem() {
@@ -388,41 +382,40 @@ public class SchoolFacade implements SchoolManagementService {
         return attendanceRepository.findByStudentId(userId);
     }
 
+    public List<Subject> getAllSubjects() {
+        return subjectRepository.findAll();
+    }
+
     public void recordAttendance(String studentId, String studentName, LocalDate date, boolean present, String subject) {
-        Attendance attendance = new Attendance(studentId, studentName, date, present, subject);
+        Long subjectId = null;
+        if (subject != null && !subject.isEmpty()) {
+            Subject subjectEntity = subjectRepository.findByCode(subject)
+                    .orElseGet(() -> subjectRepository.save(new Subject(subject, subject)));
+            subjectId = subjectEntity.getId();
+        }
+
+        Attendance attendance = new Attendance(studentId, studentName, date, present, subject, subjectId);
         attendanceRepository.save(attendance);
         
         createAttendanceNotification(studentId, studentName, date, present, subject);
     }
     
     private void createAttendanceNotification(String studentId, String studentName, LocalDate date, boolean present, String subject) {
-        String studentMessage;
-        if (present) {
-            studentMessage = String.format("You were marked present for %s on %s", subject, date.toString());
-        } else {
-            studentMessage = String.format("You were marked ABSENT for %s on %s", subject, date.toString());
-        }
-        Notification studentNotif = new Notification(studentId, studentMessage, "ATTENDANCE");
-        notificationRepository.save(studentNotif);
-        System.out.println("Created attendance notification for student: " + studentId + " - " + studentMessage);
+        String studentMessage = present 
+            ? String.format("You were marked present for %s on %s", subject, date.toString())
+            : String.format("You were marked ABSENT for %s on %s", subject, date.toString());
+        
+        Notification studentNotification = new Notification(studentId, studentMessage, "ATTENDANCE");
+        notificationRepository.save(studentNotification);
         
         List<ParentStudent> parentRelations = parentStudentRepository.findByStudentUserId(studentId);
-        if (parentRelations.isEmpty()) {
-            System.out.println("No parent linked for student: " + studentId);
-        } else {
-            System.out.println("Found " + parentRelations.size() + " parent(s) for student: " + studentId);
-        }
-        
         for (ParentStudent relation : parentRelations) {
-            String parentMessage;
-            if (present) {
-                parentMessage = String.format("Your child %s was marked present for %s on %s", studentName, subject, date.toString());
-            } else {
-                parentMessage = String.format("⚠️ Your child %s was marked ABSENT for %s on %s", studentName, subject, date.toString());
-            }
-            Notification parentNotif = new Notification(relation.getParentUserId(), parentMessage, "ATTENDANCE");
-            notificationRepository.save(parentNotif);
-            System.out.println("Created attendance notification for parent: " + relation.getParentUserId() + " - " + parentMessage);
+            String parentMessage = present
+                ? String.format("Your child %s was marked present for %s on %s", studentName, subject, date.toString())
+                : String.format("Your child %s was marked ABSENT for %s on %s", studentName, subject, date.toString());
+            
+            Notification parentNotification = new Notification(relation.getParentUserId(), parentMessage, "ATTENDANCE");
+            notificationRepository.save(parentNotification);
         }
     }
 
@@ -445,16 +438,16 @@ public class SchoolFacade implements SchoolManagementService {
     }
 
     public void deleteUser(String userId) {
-        Optional<school.model.User> userOpt = userRepository.findByUserId(userId);
-        if (userOpt.isPresent()) {
-            userRepository.delete(userOpt.get());
+        Optional<school.model.User> userOptional = userRepository.findByUserId(userId);
+        if (userOptional.isPresent()) {
+            userRepository.delete(userOptional.get());
         }
     }
 
     public school.model.User updateUser(String userId, String firstName, String lastName, String email, String major, String department, String position) {
-        Optional<school.model.User> userOpt = userRepository.findByUserId(userId);
-        if (userOpt.isPresent()) {
-            school.model.User user = userOpt.get();
+        Optional<school.model.User> userOptional = userRepository.findByUserId(userId);
+        if (userOptional.isPresent()) {
+            school.model.User user = userOptional.get();
             if (firstName != null) user.setFirstName(firstName);
             if (lastName != null) user.setLastName(lastName);
             if (email != null) user.setEmail(email);
@@ -471,11 +464,11 @@ public class SchoolFacade implements SchoolManagementService {
     }
 
     public void markNotificationAsRead(Long notificationId) {
-        Optional<Notification> notifOpt = notificationRepository.findById(notificationId);
-        if (notifOpt.isPresent()) {
-            Notification notif = notifOpt.get();
-            notif.setIsRead(true);
-            notificationRepository.save(notif);
+        Optional<Notification> notificationOptional = notificationRepository.findById(notificationId);
+        if (notificationOptional.isPresent()) {
+            Notification notification = notificationOptional.get();
+            notification.setIsRead(true);
+            notificationRepository.save(notification);
         }
     }
 
@@ -491,5 +484,25 @@ public class SchoolFacade implements SchoolManagementService {
         return parentStudentRepository.findByParentUserId(parentUserId).stream()
                 .map(ParentStudent::getStudentUserId)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Send a message between two users using their numeric primary keys (User.id).
+     */
+    public Message sendMessage(Long senderUserPk, Long receiverUserPk, String content) {
+        Message message = new Message(senderUserPk, receiverUserPk, content);
+        return messageRepository.save(message);
+    }
+
+    /**
+     * Get a conversation between two users ordered by time (both directions).
+     */
+    public java.util.List<Message> getConversation(Long userPkA, Long userPkB) {
+        java.util.List<Message> aToB = messageRepository.findBySenderUserPkAndReceiverUserPkOrderByCreatedAtAsc(userPkA, userPkB);
+        java.util.List<Message> bToA = messageRepository.findBySenderUserPkAndReceiverUserPkOrderByCreatedAtAsc(userPkB, userPkA);
+
+        return java.util.stream.Stream.concat(aToB.stream(), bToA.stream())
+                .sorted((m1, m2) -> m1.getCreatedAt().compareTo(m2.getCreatedAt()))
+                .collect(java.util.stream.Collectors.toList());
     }
 }

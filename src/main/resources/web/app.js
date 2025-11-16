@@ -65,7 +65,8 @@ async function onboardStaff(event) {
 
     const data = {
         id: document.getElementById('staffId').value,
-        name: document.getElementById('staffName').value,
+        firstName: document.getElementById('staffFirstName').value,
+        lastName: document.getElementById('staffLastName').value,
         department: document.getElementById('staffDept').value,
         position: document.getElementById('staffPosition').value,
         year: document.getElementById('staffYear').value,
@@ -239,42 +240,13 @@ async function createUser(event) {
 }
 
 async function runDemo() {
-    const resultDiv = document.getElementById('demoResult');
-    resultDiv.className = 'result';
-    resultDiv.style.display = 'none';
-    resultDiv.innerHTML = '<strong>Running demo...</strong>';
-    resultDiv.className = 'result success';
-    resultDiv.style.display = 'block';
-
-    try {
-        const response = await fetch(`${API_BASE}/api/demo/run`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-            resultDiv.innerHTML = `
-                <strong>✓ ${result.message}</strong>
-                <pre>${result.output}</pre>
-            `;
-            appendOutput(result.output);
-        } else {
-            resultDiv.className = 'result error';
-            resultDiv.innerHTML = `<strong>✗ Error:</strong> ${result.error}`;
-        }
-    } catch (error) {
-        resultDiv.className = 'result error';
-        resultDiv.innerHTML = `<strong>✗ Error:</strong> ${error.message}`;
-    }
+    // System demo has been removed from the production UI.
+    // This function is kept as a no-op placeholder in case older HTML still references it.
+    return;
 }
 
 function appendOutput(text) {
-    const outputArea = document.getElementById('outputArea');
-    outputArea.textContent += text + '\n';
-    outputArea.scrollTop = outputArea.scrollHeight;
+    // Output area has been removed from the production UI, so this is now a no-op.
+    return;
 }
 

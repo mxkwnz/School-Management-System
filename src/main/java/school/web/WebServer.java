@@ -49,6 +49,9 @@ public class WebServer {
         server.createContext("/api/notifications/read", controller::handleMarkNotificationRead);
         server.createContext("/api/parent/link", controller::handleLinkParentToStudent);
         server.createContext("/api/parent/students", controller::handleGetParentStudents);
+        server.createContext("/api/subjects/all", controller::handleGetAllSubjects);
+        server.createContext("/api/messages/send", controller::handleSendMessage);
+        server.createContext("/api/messages/conversation", controller::handleGetConversation);
         server.createContext("/", this::handleStaticFiles);
         server.setExecutor(null);
         server.start();

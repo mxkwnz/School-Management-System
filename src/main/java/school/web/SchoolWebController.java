@@ -93,7 +93,8 @@ public class SchoolWebController {
             String requestBody = readRequestBody(exchange);
             JSONObject json = new JSONObject(requestBody);
             String id = json.getString("id");
-            String name = json.getString("name");
+            String firstName = json.getString("firstName");
+            String lastName = json.getString("lastName");
             String dept = json.getString("department");
             String position = json.getString("position");
             String year = json.optString("year", "2024-2025");
@@ -103,7 +104,8 @@ public class SchoolWebController {
             PrintStream ps = new PrintStream(baos);
             PrintStream oldOut = System.out;
             System.setOut(ps);
-            getSchoolService().completeStaffOnboarding(id, name, dept, position, year, trimester);
+            String fullName = firstName + " " + lastName;
+            getSchoolService().completeStaffOnboarding(id, fullName, dept, position, year, trimester);
             System.setOut(oldOut);
             String output = baos.toString();
 
@@ -112,7 +114,7 @@ public class SchoolWebController {
             response.put("message", "Staff onboarded successfully");
             response.put("output", output);
             response.put("staffId", id);
-            response.put("staffName", name);
+            response.put("staffName", fullName);
             sendResponse(exchange, 200, response.toString());
         } catch (Exception e) {
             sendResponse(exchange, 400, createErrorResponse(e.getMessage()));
@@ -132,6 +134,7 @@ public class SchoolWebController {
             String requestBody = readRequestBody(exchange);
             JSONObject json = new JSONObject(requestBody);
             String studentName = json.getString("studentName");
+            String subject = json.optString("subject", "");
             int oldScore = json.getInt("oldGrade");
             int newScore = json.getInt("newGrade");
             boolean notifyStudent = json.optBoolean("notifyStudent", true);
@@ -148,7 +151,8 @@ public class SchoolWebController {
             PrintStream ps = new PrintStream(baos);
             PrintStream oldOut = System.out;
             System.setOut(ps);
-            getSchoolService().updateGrade(studentName, new NumericGrade(oldScore), newScore);
+            // Use facade directly so we can pass subject and keep subject-based grades
+            schoolFacade.updateGradeForSubject(studentName, subject, new NumericGrade(oldScore), newScore);
             System.setOut(oldOut);
             String output = baos.toString();
 
@@ -178,6 +182,9 @@ public class SchoolWebController {
             int presentDays = json.getInt("presentDays");
             int totalDays = json.getInt("totalDays");
             String strategy = json.optString("strategy", "percentage");
+            Long subjectId = json.has("subjectId") && !json.isNull("subjectId")
+                    ? json.getLong("subjectId")
+                    : null;
 
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             PrintStream ps = new PrintStream(baos);
@@ -186,7 +193,13 @@ public class SchoolWebController {
 
             JSONObject response = new JSONObject();
             if ("percentage".equalsIgnoreCase(strategy)) {
-                double result = getSchoolService().calculateAttendancePercentage(studentName, presentDays, totalDays);
+                double result;
+                if (subjectId != null && schoolFacade != null) {
+                    // Use per-subject calculation when subjectId is provided
+                    result = schoolFacade.calculateAttendancePercentageBySubject(studentName, subjectId);
+                } else {
+                    result = getSchoolService().calculateAttendancePercentage(studentName, presentDays, totalDays);
+                }
                 response.put("result", result);
                 response.put("resultType", "percentage");
                 response.put("formatted", String.format("%.2f%%", result));
@@ -537,6 +550,7 @@ public class SchoolWebController {
                 JSONObject response = new JSONObject();
                 response.put("success", true);
                 response.put("message", "Login successful");
+                response.put("id", user.getId());
                 response.put("userId", user.getUserId());
                 response.put("firstName", user.getFirstName());
                 response.put("lastName", user.getLastName());
@@ -622,6 +636,7 @@ public class SchoolWebController {
             for (Grade grade : grades) {
                 JSONObject gradeJson = new JSONObject();
                 gradeJson.put("id", grade.getId());
+                gradeJson.put("subjectId", grade.getSubjectId());
                 gradeJson.put("subject", grade.getSubject());
                 gradeJson.put("score", grade.getScore());
                 gradeJson.put("createdAt", grade.getCreatedAt().toString());
@@ -671,6 +686,7 @@ public class SchoolWebController {
                 attJson.put("id", att.getId());
                 attJson.put("date", att.getDate().toString());
                 attJson.put("present", att.getPresent());
+                attJson.put("subjectId", att.getSubjectId());
                 attJson.put("subject", att.getSubject());
                 attendanceArray.put(attJson);
                 if (att.getPresent()) presentCount++;
@@ -732,6 +748,8 @@ public class SchoolWebController {
             JSONArray studentsArray = new JSONArray();
             for (school.model.User student : students) {
                 JSONObject studentJson = new JSONObject();
+                // Expose the numeric primary key so frontend can use it as sender/receiverPk
+                studentJson.put("id", student.getId());
                 studentJson.put("userId", student.getUserId());
                 studentJson.put("firstName", student.getFirstName());
                 studentJson.put("lastName", student.getLastName());
@@ -985,6 +1003,96 @@ public class SchoolWebController {
         }
     }
 
+    /**
+     * Send a message between two users (advisor ↔ student, or any users)
+     * using their numeric primary keys (User.id). We explicitly DO NOT use
+     * the string userId field here, as requested.
+     */
+    public void handleSendMessage(HttpExchange exchange) throws IOException {
+        if ("OPTIONS".equals(exchange.getRequestMethod())) {
+            handleOptions(exchange);
+            return;
+        }
+        if (!"POST".equals(exchange.getRequestMethod())) {
+            sendResponse(exchange, 405, createErrorResponse("Method not allowed"));
+            return;
+        }
+        try {
+            String requestBody = readRequestBody(exchange);
+            JSONObject json = new JSONObject(requestBody);
+            Long senderPk = json.getLong("senderPk");
+            Long receiverPk = json.getLong("receiverPk");
+            String content = json.getString("content");
+
+            school.model.Message message = schoolFacade.sendMessage(senderPk, receiverPk, content);
+
+            JSONObject response = new JSONObject();
+            response.put("success", true);
+            response.put("message", "Message sent successfully");
+            response.put("id", message.getId());
+            response.put("senderPk", message.getSenderUserPk());
+            response.put("receiverPk", message.getReceiverUserPk());
+            response.put("content", message.getContent());
+            response.put("createdAt", message.getCreatedAt().toString());
+            sendResponse(exchange, 200, response.toString());
+        } catch (Exception e) {
+            sendResponse(exchange, 400, createErrorResponse(e.getMessage()));
+        }
+    }
+
+    /**
+     * Get conversation between two users by their numeric primary keys.
+     */
+    public void handleGetConversation(HttpExchange exchange) throws IOException {
+        if ("OPTIONS".equals(exchange.getRequestMethod())) {
+            handleOptions(exchange);
+            return;
+        }
+        if (!"GET".equals(exchange.getRequestMethod())) {
+            sendResponse(exchange, 405, createErrorResponse("Method not allowed"));
+            return;
+        }
+        try {
+            String query = exchange.getRequestURI().getQuery();
+            Long userPkA = null;
+            Long userPkB = null;
+            if (query != null) {
+                for (String param : query.split("&")) {
+                    String[] pair = param.split("=");
+                    if (pair.length == 2 && "userPkA".equals(pair[0])) {
+                        userPkA = Long.parseLong(java.net.URLDecoder.decode(pair[1], StandardCharsets.UTF_8));
+                    } else if (pair.length == 2 && "userPkB".equals(pair[0])) {
+                        userPkB = Long.parseLong(java.net.URLDecoder.decode(pair[1], StandardCharsets.UTF_8));
+                    }
+                }
+            }
+            if (userPkA == null || userPkB == null) {
+                sendResponse(exchange, 400, createErrorResponse("userPkA and userPkB parameters required"));
+                return;
+            }
+
+            java.util.List<school.model.Message> messages = schoolFacade.getConversation(userPkA, userPkB);
+            JSONArray arr = new JSONArray();
+            for (school.model.Message m : messages) {
+                JSONObject obj = new JSONObject();
+                obj.put("id", m.getId());
+                obj.put("senderPk", m.getSenderUserPk());
+                obj.put("receiverPk", m.getReceiverUserPk());
+                obj.put("content", m.getContent());
+                obj.put("createdAt", m.getCreatedAt().toString());
+                obj.put("isRead", m.getIsRead());
+                arr.put(obj);
+            }
+
+            JSONObject response = new JSONObject();
+            response.put("success", true);
+            response.put("messages", arr);
+            sendResponse(exchange, 200, response.toString());
+        } catch (Exception e) {
+            sendResponse(exchange, 400, createErrorResponse(e.getMessage()));
+        }
+    }
+
     public void handleGetParentStudents(HttpExchange exchange) throws IOException {
         if ("OPTIONS".equals(exchange.getRequestMethod())) {
             handleOptions(exchange);
@@ -1014,6 +1122,35 @@ public class SchoolWebController {
             JSONObject response = new JSONObject();
             response.put("success", true);
             response.put("studentIds", new JSONArray(studentIds));
+            sendResponse(exchange, 200, response.toString());
+        } catch (Exception e) {
+            sendResponse(exchange, 400, createErrorResponse(e.getMessage()));
+        }
+    }
+
+    public void handleGetAllSubjects(HttpExchange exchange) throws IOException {
+        if ("OPTIONS".equals(exchange.getRequestMethod())) {
+            handleOptions(exchange);
+            return;
+        }
+        if (!"GET".equals(exchange.getRequestMethod())) {
+            sendResponse(exchange, 405, createErrorResponse("Method not allowed"));
+            return;
+        }
+        try {
+            java.util.List<school.model.Subject> subjects = schoolFacade.getAllSubjects();
+            JSONArray arr = new JSONArray();
+            for (school.model.Subject subject : subjects) {
+                JSONObject obj = new JSONObject();
+                obj.put("id", subject.getId());
+                obj.put("code", subject.getCode());
+                obj.put("name", subject.getName());
+                arr.put(obj);
+            }
+
+            JSONObject response = new JSONObject();
+            response.put("success", true);
+            response.put("subjects", arr);
             sendResponse(exchange, 200, response.toString());
         } catch (Exception e) {
             sendResponse(exchange, 400, createErrorResponse(e.getMessage()));
