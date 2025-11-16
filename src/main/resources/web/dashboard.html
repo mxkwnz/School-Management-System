@@ -365,6 +365,123 @@
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            box-shadow: var(--shadow-xl);
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: slideUp 0.3s ease-out;
+            position: relative;
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 25px 30px;
+            border-bottom: 2px solid var(--gray-200);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            border-radius: 20px 20px 0 0;
+        }
+        
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.5em;
+            font-weight: 700;
+            color: white !important;
+            text-shadow: none !important;
+            border: none !important;
+            padding: 0 !important;
+        }
+        
+        .modal-close {
+            color: white;
+            font-size: 32px;
+            font-weight: 300;
+            cursor: pointer;
+            line-height: 1;
+            transition: transform 0.2s;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .modal-close:hover {
+            transform: rotate(90deg);
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .modal-content form {
+            padding: 30px;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+            margin-top: 25px;
+            padding-top: 25px;
+            border-top: 2px solid var(--gray-200);
+        }
+        
+        .btn-secondary {
+            background: var(--gray-200);
+            color: var(--gray-800);
+            padding: 14px 32px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: var(--shadow);
+        }
+        
+        .btn-secondary:hover {
+            background: var(--gray-300);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
     </style>
 </head>
 <body>
@@ -469,23 +586,8 @@
         <div id="teacherGrades" class="tab-content">
             <div class="card">
                 <h3>Update Student Grades</h3>
-                <form id="updateGradeForm" onsubmit="updateStudentGrade(event)">
-                <div class="form-group">
-                    <label>Select Student:</label>
-                    <select id="gradeStudentSelect" onchange="onStudentSelectChange(this, 'grade')" required>
-                        <option value="">-- Select a student --</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Subject:</label>
-                    <input type="text" id="gradeSubject" required>
-                </div>
-                <div class="form-group">
-                    <label>Score (0-100):</label>
-                    <input type="number" id="gradeScore" min="0" max="100" required>
-                </div>
-                <button type="submit" class="btn-primary">Update Grade</button>
-                </form>
+                <button onclick="openUpdateGradeModal()" class="btn-primary">Update Grade</button>
+                <div id="gradesListContainer" style="margin-top: 20px;"></div>
             </div>
         </div>
         
@@ -527,6 +629,7 @@
         <div class="tabs" style="margin-top: 20px;">
             <button class="tab-button active" onclick="showAdminTab('users')">User Management</button>
             <button class="tab-button" onclick="showAdminTab('staff')">Staff List</button>
+            <button class="tab-button" onclick="showAdminTab('staffOnboard')">Hire Staff</button>
             <button class="tab-button" onclick="showAdminTab('students')">Student Registration</button>
             <button class="tab-button" onclick="showAdminTab('parent')">Link Parent</button>
             <button class="tab-button" onclick="showAdminTab('system')">System Demo</button>
@@ -593,27 +696,29 @@
             </form>
         </div>
         
-        <div id="adminStaff" class="tab-content">
-            <h3>Staff Onboarding</h3>
-            <form id="adminStaffForm" onsubmit="onboardStaff(event)">
-                <div class="form-group">
-                    <label>Staff ID:</label>
-                    <input type="text" id="adminStaffId" required>
-                </div>
-                <div class="form-group">
-                    <label>Name:</label>
-                    <input type="text" id="adminStaffName" required>
-                </div>
-                <div class="form-group">
-                    <label>Department:</label>
-                    <input type="text" id="adminStaffDept" required>
-                </div>
-                <div class="form-group">
-                    <label>Position:</label>
-                    <input type="text" id="adminStaffPosition" required>
-                </div>
-                <button type="submit" class="btn-primary">Onboard Staff</button>
-            </form>
+        <div id="adminStaffOnboard" class="tab-content">
+            <div class="card">
+                <h3>Hire Staff Member</h3>
+                <form id="adminStaffForm" onsubmit="onboardStaff(event)">
+                    <div class="form-group">
+                        <label>Staff ID:</label>
+                        <input type="text" id="adminStaffId" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Name:</label>
+                        <input type="text" id="adminStaffName" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Department:</label>
+                        <input type="text" id="adminStaffDept" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Position:</label>
+                        <input type="text" id="adminStaffPosition" required>
+                    </div>
+                    <button type="submit" class="btn-primary">Hire Staff</button>
+                </form>
+            </div>
         </div>
         
         <div id="adminParent" class="tab-content">
@@ -644,6 +749,81 @@
                 <div id="demoOutput" class="result" style="margin-top: 20px;"></div>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div id="editUserModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Edit User</h2>
+            <span class="modal-close" onclick="closeEditUserModal()">&times;</span>
+        </div>
+        <form id="editUserForm" onsubmit="updateUserFromModal(event)">
+            <input type="hidden" id="editUserId">
+            <div class="form-group">
+                <label>First Name:</label>
+                <input type="text" id="editFirstName" required>
+            </div>
+            <div class="form-group">
+                <label>Last Name:</label>
+                <input type="text" id="editLastName" required>
+            </div>
+            <div class="form-group">
+                <label>Email:</label>
+                <input type="email" id="editEmail" required>
+            </div>
+            <div class="form-group">
+                <label>Major (for students):</label>
+                <input type="text" id="editMajor">
+            </div>
+            <div class="form-group">
+                <label>Department (for staff):</label>
+                <input type="text" id="editDepartment">
+            </div>
+            <div class="form-group">
+                <label>Position (for staff):</label>
+                <input type="text" id="editPosition">
+            </div>
+            <div class="modal-actions">
+                <button type="button" onclick="closeEditUserModal()" class="btn-secondary">Cancel</button>
+                <button type="submit" class="btn-primary">Update User</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Update Grade Modal -->
+<div id="updateGradeModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Update Student Grade</h2>
+            <span class="modal-close" onclick="closeUpdateGradeModal()">&times;</span>
+        </div>
+        <form id="updateGradeForm" onsubmit="updateStudentGrade(event)">
+            <div class="form-group">
+                <label>Select Student:</label>
+                <select id="gradeStudentSelect" onchange="onStudentSelectChange(this, 'grade')" required>
+                    <option value="">-- Select a student --</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Subject:</label>
+                <input type="text" id="gradeSubject" required>
+            </div>
+            <div class="form-group">
+                <label>Current Score:</label>
+                <input type="number" id="currentGradeScore" min="0" max="100" readonly style="background: #f3f4f6; cursor: not-allowed;">
+            </div>
+            <div class="form-group">
+                <label>New Score (0-100):</label>
+                <input type="number" id="gradeScore" min="0" max="100" required>
+            </div>
+            <div class="modal-actions">
+                <button type="button" onclick="closeUpdateGradeModal()" class="btn-secondary">Cancel</button>
+                <button type="submit" class="btn-primary">Update Grade</button>
+            </div>
+        </form>
     </div>
 </div>
 

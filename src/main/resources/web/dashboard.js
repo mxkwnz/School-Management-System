@@ -15,6 +15,17 @@ document.addEventListener('DOMContentLoaded', function() {
     displayUserInfo();
     loadDashboard();
     loadStudentsForDropdowns();
+    
+    // Setup subject input listener for loading current grade
+    const subjectInput = document.getElementById('gradeSubject');
+    if (subjectInput) {
+        subjectInput.addEventListener('blur', function() {
+            const studentSelect = document.getElementById('gradeStudentSelect');
+            if (studentSelect && studentSelect.value && this.value) {
+                loadCurrentGrade(studentSelect.value, this.value);
+            }
+        });
+    }
 });
 
 let allStudents = [];
@@ -69,6 +80,12 @@ function onStudentSelectChange(selectElement, type) {
         const lastName = selectedOption.dataset.lastName;
         if (type === 'attendance') {
             // Student name is auto-filled from dropdown
+        } else if (type === 'grade') {
+            // Load current grade when student and subject are selected
+            const subject = document.getElementById('gradeSubject').value;
+            if (subject) {
+                loadCurrentGrade(selectedOption.value, subject);
+            }
         }
     }
 }
@@ -197,6 +214,8 @@ function showAdminTab(tabName) {
         loadAllUsers();
     } else if (tabName === 'staff') {
         loadStaffList();
+    } else if (tabName === 'staffOnboard') {
+        // Staff onboarding form is already visible
     } else if (tabName === 'parent') {
         loadParentLinkForm();
     }
@@ -291,6 +310,57 @@ function getLetterGrade(score) {
     return 'F';
 }
 
+function openUpdateGradeModal() {
+    const modal = document.getElementById('updateGradeModal');
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    
+    // Load current grade if student is selected
+    const studentSelect = document.getElementById('gradeStudentSelect');
+    if (studentSelect && studentSelect.value) {
+        loadCurrentGrade(studentSelect.value, document.getElementById('gradeSubject').value);
+    }
+}
+
+function closeUpdateGradeModal() {
+    const modal = document.getElementById('updateGradeModal');
+    modal.classList.remove('active');
+    document.body.style.overflow = 'auto';
+    document.getElementById('updateGradeForm').reset();
+    document.getElementById('currentGradeScore').value = '';
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const modal = document.getElementById('updateGradeModal');
+    if (event.target === modal) {
+        closeUpdateGradeModal();
+    }
+}
+
+async function loadCurrentGrade(studentId, subject) {
+    if (!studentId || !subject) {
+        document.getElementById('currentGradeScore').value = '';
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/api/user/grades?userId=${studentId}`);
+        const result = await response.json();
+        
+        if (result.success && result.grades) {
+            const grade = result.grades.find(g => g.subject === subject);
+            if (grade) {
+                document.getElementById('currentGradeScore').value = grade.score;
+            } else {
+                document.getElementById('currentGradeScore').value = 'N/A';
+            }
+        }
+    } catch (error) {
+        console.error('Error loading current grade:', error);
+    }
+}
+
 async function updateStudentGrade(event) {
     event.preventDefault();
     const studentSelect = document.getElementById('gradeStudentSelect');
@@ -298,10 +368,16 @@ async function updateStudentGrade(event) {
     const studentId = selectedOption.value;
     const studentName = selectedOption.textContent.split(' (')[0];
     const subject = document.getElementById('gradeSubject').value;
-    const score = parseInt(document.getElementById('gradeScore').value);
+    const currentScore = parseInt(document.getElementById('currentGradeScore').value) || 0;
+    const newScore = parseInt(document.getElementById('gradeScore').value);
 
     if (!studentId) {
-        alert('Please select a student');
+        showModalMessage('Please select a student', 'error');
+        return;
+    }
+
+    if (newScore < 0 || newScore > 100) {
+        showModalMessage('Score must be between 0 and 100', 'error');
         return;
     }
 
@@ -313,8 +389,8 @@ async function updateStudentGrade(event) {
             },
             body: JSON.stringify({
                 studentName: studentId,
-                oldGrade: score - 1,
-                newGrade: score,
+                oldGrade: currentScore,
+                newGrade: newScore,
                 notifyStudent: true,
                 notifyParent: true
             })
@@ -322,15 +398,51 @@ async function updateStudentGrade(event) {
 
         const result = await response.json();
         if (result.success) {
-            alert(`Grade updated successfully for ${studentName}!`);
-            document.getElementById('updateGradeForm').reset();
-            studentSelect.selectedIndex = 0;
+            showModalMessage(`Grade updated successfully for ${studentName}!`, 'success');
+            setTimeout(() => {
+                closeUpdateGradeModal();
+                if (currentUser && currentUser.roles && currentUser.roles.includes('STUDENT')) {
+                    loadStudentData();
+                }
+            }, 1500);
         } else {
-            alert('Error: ' + result.error);
+            showModalMessage('Error: ' + result.error, 'error');
         }
     } catch (error) {
-        alert('Error: ' + error.message);
+        showModalMessage('Error: ' + error.message, 'error');
     }
+}
+
+function showModalMessage(message, type) {
+    const form = document.getElementById('updateGradeForm');
+    let messageDiv = document.getElementById('modalMessage');
+    
+    if (!messageDiv) {
+        messageDiv = document.createElement('div');
+        messageDiv.id = 'modalMessage';
+        messageDiv.style.marginTop = '15px';
+        messageDiv.style.padding = '12px 16px';
+        messageDiv.style.borderRadius = '8px';
+        messageDiv.style.fontWeight = '500';
+        form.appendChild(messageDiv);
+    }
+    
+    messageDiv.textContent = message;
+    messageDiv.style.display = 'block';
+    
+    if (type === 'success') {
+        messageDiv.style.background = 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)';
+        messageDiv.style.color = '#065f46';
+        messageDiv.style.borderLeft = '4px solid #10b981';
+    } else {
+        messageDiv.style.background = 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)';
+        messageDiv.style.color = '#991b1b';
+        messageDiv.style.borderLeft = '4px solid #ef4444';
+    }
+    
+    setTimeout(() => {
+        messageDiv.style.display = 'none';
+    }, 3000);
 }
 
 async function recordAttendance(event) {
@@ -408,6 +520,38 @@ async function registerStudent(event) {
     }
 }
 
+function showStaffOnboardMessage(message, type) {
+    const form = document.getElementById('adminStaffForm');
+    let messageDiv = document.getElementById('staffOnboardMessage');
+    
+    if (!messageDiv) {
+        messageDiv = document.createElement('div');
+        messageDiv.id = 'staffOnboardMessage';
+        messageDiv.style.marginTop = '15px';
+        messageDiv.style.padding = '12px 16px';
+        messageDiv.style.borderRadius = '8px';
+        messageDiv.style.fontWeight = '500';
+        form.appendChild(messageDiv);
+    }
+    
+    messageDiv.textContent = message;
+    messageDiv.style.display = 'block';
+    
+    if (type === 'success') {
+        messageDiv.style.background = 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)';
+        messageDiv.style.color = '#065f46';
+        messageDiv.style.borderLeft = '4px solid #10b981';
+    } else {
+        messageDiv.style.background = 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)';
+        messageDiv.style.color = '#991b1b';
+        messageDiv.style.borderLeft = '4px solid #ef4444';
+    }
+    
+    setTimeout(() => {
+        messageDiv.style.display = 'none';
+    }, 3000);
+}
+
 async function onboardStaff(event) {
     event.preventDefault();
     const data = {
@@ -430,13 +574,17 @@ async function onboardStaff(event) {
 
         const result = await response.json();
         if (result.success) {
-            alert('Staff onboarded successfully!');
+            showStaffOnboardMessage('Staff hired successfully!', 'success');
             document.getElementById('adminStaffForm').reset();
+            setTimeout(() => {
+                loadStaffList();
+                showAdminTab('staff');
+            }, 1500);
         } else {
-            alert('Error: ' + result.error);
+            showStaffOnboardMessage('Error: ' + result.error, 'error');
         }
     } catch (error) {
-        alert('Error: ' + error.message);
+        showStaffOnboardMessage('Error: ' + error.message, 'error');
     }
 }
 
@@ -538,15 +686,64 @@ async function loadStaffList() {
     }
 }
 
-function editUser(userId) {
-    const newFirstName = prompt('Enter new first name:');
-    const newLastName = prompt('Enter new last name:');
-    const newEmail = prompt('Enter new email:');
-    
-    if (newFirstName && newLastName && newEmail) {
-        updateUser(userId, newFirstName, newLastName, newEmail, null, null, null);
+async function editUser(userId) {
+    try {
+        const response = await fetch(`${API_BASE}/api/users/all`);
+        const result = await response.json();
+        
+        if (result.success) {
+            const user = result.users.find(u => u.userId === userId);
+            if (user) {
+                document.getElementById('editUserId').value = user.userId;
+                document.getElementById('editFirstName').value = user.firstName || '';
+                document.getElementById('editLastName').value = user.lastName || '';
+                document.getElementById('editEmail').value = user.email || '';
+                document.getElementById('editMajor').value = user.major || '';
+                document.getElementById('editDepartment').value = user.department || '';
+                document.getElementById('editPosition').value = user.position || '';
+                
+                openEditUserModal();
+            }
+        }
+    } catch (error) {
+        console.error('Error loading user data:', error);
+        alert('Error loading user data: ' + error.message);
     }
 }
+
+function openEditUserModal() {
+    const modal = document.getElementById('editUserModal');
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeEditUserModal() {
+    const modal = document.getElementById('editUserModal');
+    modal.classList.remove('active');
+    document.body.style.overflow = 'auto';
+    document.getElementById('editUserForm').reset();
+}
+
+async function updateUserFromModal(event) {
+    event.preventDefault();
+    const userId = document.getElementById('editUserId').value;
+    const firstName = document.getElementById('editFirstName').value;
+    const lastName = document.getElementById('editLastName').value;
+    const email = document.getElementById('editEmail').value;
+    const major = document.getElementById('editMajor').value || null;
+    const department = document.getElementById('editDepartment').value || null;
+    const position = document.getElementById('editPosition').value || null;
+    
+    await updateUser(userId, firstName, lastName, email, major, department, position);
+}
+
+// Close modal when clicking outside
+document.addEventListener('click', function(event) {
+    const editModal = document.getElementById('editUserModal');
+    if (event.target === editModal) {
+        closeEditUserModal();
+    }
+});
 
 async function updateUser(userId, firstName, lastName, email, major, department, position) {
     try {
@@ -568,14 +765,49 @@ async function updateUser(userId, firstName, lastName, email, major, department,
 
         const result = await response.json();
         if (result.success) {
-            alert('User updated successfully!');
-            loadAllUsers();
+            showEditUserMessage('User updated successfully!', 'success');
+            setTimeout(() => {
+                closeEditUserModal();
+                loadAllUsers();
+            }, 1500);
         } else {
-            alert('Error: ' + result.error);
+            showEditUserMessage('Error: ' + result.error, 'error');
         }
     } catch (error) {
-        alert('Error: ' + error.message);
+        showEditUserMessage('Error: ' + error.message, 'error');
     }
+}
+
+function showEditUserMessage(message, type) {
+    const form = document.getElementById('editUserForm');
+    let messageDiv = document.getElementById('editUserMessage');
+    
+    if (!messageDiv) {
+        messageDiv = document.createElement('div');
+        messageDiv.id = 'editUserMessage';
+        messageDiv.style.marginTop = '15px';
+        messageDiv.style.padding = '12px 16px';
+        messageDiv.style.borderRadius = '8px';
+        messageDiv.style.fontWeight = '500';
+        form.appendChild(messageDiv);
+    }
+    
+    messageDiv.textContent = message;
+    messageDiv.style.display = 'block';
+    
+    if (type === 'success') {
+        messageDiv.style.background = 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)';
+        messageDiv.style.color = '#065f46';
+        messageDiv.style.borderLeft = '4px solid #10b981';
+    } else {
+        messageDiv.style.background = 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)';
+        messageDiv.style.color = '#991b1b';
+        messageDiv.style.borderLeft = '4px solid #ef4444';
+    }
+    
+    setTimeout(() => {
+        messageDiv.style.display = 'none';
+    }, 3000);
 }
 
 async function deleteUser(userId) {
