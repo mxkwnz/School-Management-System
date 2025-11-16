@@ -192,7 +192,11 @@ function loadDashboard() {
         showParentDashboard();
         loadParentData();
         showNotificationsSection();
-    } else if (roles.includes('TEACHER') || roles.includes('ADVISOR')) {
+    } else if (roles.includes('ADVISOR') && !roles.includes('TEACHER') && !roles.includes('ADMIN')) {
+        // Pure advisor: limited dashboard focused on messaging only
+        showAdvisorDashboard();
+        showNotificationsSection();
+    } else if (roles.includes('TEACHER')) {
         showTeacherDashboard();
         showNotificationsSection();
     } else if (roles.includes('ADMIN')) {
@@ -224,6 +228,53 @@ function hideNotificationsSection() {
     const section = document.getElementById('notificationsSection');
     if (section) {
         section.style.display = 'none';
+    }
+}
+
+// Advisor dashboard reuses teacher layout but hides management / grades / attendance
+function showAdvisorDashboard() {
+    // Activate teacher layout
+    document.getElementById('studentDashboard').classList.remove('active');
+    document.getElementById('teacherDashboard').classList.add('active');
+    document.getElementById('adminDashboard').classList.remove('active');
+
+    // Rename header to Advisor Dashboard
+    const header = document.querySelector('#teacherDashboard h2');
+    if (header) {
+        header.textContent = 'Advisor Dashboard';
+    }
+
+    // Hide tabs that are not allowed for advisors
+    const manageBtn = document.querySelector('#teacherDashboard .tabs button[onclick*="manage"]');
+    const gradesBtn = document.querySelector('#teacherDashboard .tabs button[onclick*="grades"]');
+    const attendanceBtn = document.querySelector('#teacherDashboard .tabs button[onclick*="attendance"]');
+    if (manageBtn) manageBtn.style.display = 'none';
+    if (gradesBtn) gradesBtn.style.display = 'none';
+    if (attendanceBtn) attendanceBtn.style.display = 'none';
+
+    // Hide corresponding content sections
+    const manageContent = document.getElementById('teacherManage');
+    const gradesContent = document.getElementById('teacherGrades');
+    const attendanceContent = document.getElementById('teacherAttendance');
+    if (manageContent) manageContent.style.display = 'none';
+    if (gradesContent) gradesContent.style.display = 'none';
+    if (attendanceContent) attendanceContent.style.display = 'none';
+
+    // Ensure only messages tab is active
+    document.querySelectorAll('#teacherDashboard .tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    const messagesContent = document.getElementById('teacherMessages');
+    if (messagesContent) {
+        messagesContent.classList.add('active');
+    }
+
+    document.querySelectorAll('#teacherDashboard .tab-button').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    const messagesBtn = document.querySelector('#teacherDashboard .tabs button[onclick*="messages"]');
+    if (messagesBtn) {
+        messagesBtn.classList.add('active');
     }
 }
 
@@ -337,6 +388,44 @@ function showTeacherDashboard() {
     if (dateInput) {
         dateInput.valueAsDate = new Date();
     }
+
+    // For pure teachers (not admin/advisor), restrict to Grades & Attendance only
+    const roles = currentUser.roles || [];
+    const isPureTeacher = roles.includes('TEACHER') && !roles.includes('ADMIN') && !roles.includes('ADVISOR');
+
+    const manageBtn = document.querySelector('#teacherDashboard .tabs button[onclick*="manage"]');
+    const messagesBtn = document.querySelector('#teacherDashboard .tabs button[onclick*="messages"]');
+    const gradesBtn = document.querySelector('#teacherDashboard .tabs button[onclick*="grades"]');
+    const attendanceBtn = document.querySelector('#teacherDashboard .tabs button[onclick*="attendance"]');
+
+    const manageContent = document.getElementById('teacherManage');
+    const messagesContent = document.getElementById('teacherMessages');
+
+    if (isPureTeacher) {
+        // Hide manage and messages for teachers
+        if (manageBtn) manageBtn.style.display = 'none';
+        if (messagesBtn) messagesBtn.style.display = 'none';
+        if (manageContent) manageContent.style.display = 'none';
+        if (messagesContent) messagesContent.style.display = 'none';
+
+        // Ensure Grades tab is active by default
+        document.querySelectorAll('#teacherDashboard .tab-content').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        if (document.getElementById('teacherGrades')) {
+            document.getElementById('teacherGrades').classList.add('active');
+        }
+        document.querySelectorAll('#teacherDashboard .tab-button').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        if (gradesBtn) gradesBtn.classList.add('active');
+    } else {
+        // For admins (and others), show all teacher tabs
+        if (manageBtn) manageBtn.style.display = '';
+        if (messagesBtn) messagesBtn.style.display = '';
+        if (manageContent) manageContent.style.display = '';
+        if (messagesContent) messagesContent.style.display = '';
+    }
 }
 
 function showParentDashboard() {
@@ -348,9 +437,29 @@ function showParentDashboard() {
 
 function showAdminDashboard() {
     document.getElementById('studentDashboard').classList.remove('active');
-    document.getElementById('teacherDashboard').classList.remove('active');
     document.getElementById('parentDashboard').classList.remove('active');
     document.getElementById('adminDashboard').classList.add('active');
+
+    // Also enable teacher Grades & Attendance tools for admin
+    document.getElementById('teacherDashboard').classList.add('active');
+
+    const header = document.querySelector('#teacherDashboard h2');
+    if (header) {
+        header.textContent = 'Teacher / Admin Tools';
+    }
+
+    const manageBtn = document.querySelector('#teacherDashboard .tabs button[onclick*="manage"]');
+    const messagesBtn = document.querySelector('#teacherDashboard .tabs button[onclick*="messages"]');
+    const manageContent = document.getElementById('teacherManage');
+    const messagesContent = document.getElementById('teacherMessages');
+
+    // Admin should not see "Manage Students" here (handled via admin tabs)
+    if (manageBtn) manageBtn.style.display = 'none';
+    if (manageContent) manageContent.style.display = 'none';
+
+    // Admin can still use messages if desired
+    if (messagesBtn) messagesBtn.style.display = '';
+    if (messagesContent) messagesContent.style.display = '';
 }
 
 function showTeacherTab(tabName) {
@@ -1312,11 +1421,18 @@ async function loadParentData() {
             const gradesPromises = result.studentIds.map(studentId => 
                 fetch(`${API_BASE}/api/user/grades?userId=${studentId}`)
             );
+            const attendancePromises = result.studentIds.map(studentId =>
+                fetch(`${API_BASE}/api/user/attendance?userId=${studentId}`)
+            );
             
-            const gradesResponses = await Promise.all(gradesPromises);
+            const [gradesResponses, attendanceResponses] = await Promise.all([
+                Promise.all(gradesPromises),
+                Promise.all(attendancePromises)
+            ]);
             const gradesResults = await Promise.all(gradesResponses.map(r => r.json()));
+            const attendanceResults = await Promise.all(attendanceResponses.map(r => r.json()));
             
-            displayParentChildrenGrades(result.studentIds, gradesResults);
+            displayParentChildrenGrades(result.studentIds, gradesResults, attendanceResults);
         } else {
             const container = document.getElementById('parentChildrenGrades');
             if (container) {
@@ -1334,13 +1450,14 @@ async function loadParentData() {
     }
 }
 
-function displayParentChildrenGrades(studentIds, gradesResults) {
+function displayParentChildrenGrades(studentIds, gradesResults, attendanceResults) {
     const container = document.getElementById('parentChildrenGrades');
     if (!container) return;
     container.innerHTML = '';
     
     studentIds.forEach((studentId, index) => {
         const gradesData = gradesResults[index];
+        const attData = attendanceResults ? attendanceResults[index] : null;
         if (gradesData.success && gradesData.grades && gradesData.grades.length > 0) {
             const childDiv = document.createElement('div');
             childDiv.className = 'card';
@@ -1374,6 +1491,13 @@ function displayParentChildrenGrades(studentIds, gradesResults) {
             });
             
             childDiv.appendChild(table);
+
+            if (attData && attData.success) {
+                const attP = document.createElement('p');
+                attP.style.marginTop = '10px';
+                attP.textContent = `Attendance: ${attData.percentage.toFixed(1)}%`;
+                childDiv.appendChild(attP);
+            }
             container.appendChild(childDiv);
         }
     });
