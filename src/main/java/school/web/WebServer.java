@@ -40,6 +40,15 @@ public class WebServer {
         server.createContext("/api/user/grades", controller::handleUserGrades);
         server.createContext("/api/user/attendance", controller::handleUserAttendance);
         server.createContext("/api/attendance/record", controller::handleRecordAttendance);
+        server.createContext("/api/students/all", controller::handleGetAllStudents);
+        server.createContext("/api/users/all", controller::handleGetAllUsers);
+        server.createContext("/api/staff/all", controller::handleGetAllStaff);
+        server.createContext("/api/users/update", controller::handleUpdateUser);
+        server.createContext("/api/users/delete", controller::handleDeleteUser);
+        server.createContext("/api/notifications", controller::handleGetNotifications);
+        server.createContext("/api/notifications/read", controller::handleMarkNotificationRead);
+        server.createContext("/api/parent/link", controller::handleLinkParentToStudent);
+        server.createContext("/api/parent/students", controller::handleGetParentStudents);
         server.createContext("/", this::handleStaticFiles);
         server.setExecutor(null);
         server.start();

@@ -31,7 +31,6 @@ public class SchoolWebController {
     private SchoolManagementService schoolService;
 
     public SchoolWebController() {
-        // Will be injected by Spring
     }
 
     private SchoolManagementService getSchoolService() {
@@ -515,7 +514,6 @@ public class SchoolWebController {
         return error.toString();
     }
 
-    // New authentication endpoints
     public void handleLogin(HttpExchange exchange) throws IOException {
         if ("OPTIONS".equals(exchange.getRequestMethod())) {
             handleOptions(exchange);
@@ -714,6 +712,308 @@ public class SchoolWebController {
             JSONObject response = new JSONObject();
             response.put("success", true);
             response.put("message", "Attendance recorded successfully");
+            sendResponse(exchange, 200, response.toString());
+        } catch (Exception e) {
+            sendResponse(exchange, 400, createErrorResponse(e.getMessage()));
+        }
+    }
+
+    public void handleGetAllStudents(HttpExchange exchange) throws IOException {
+        if ("OPTIONS".equals(exchange.getRequestMethod())) {
+            handleOptions(exchange);
+            return;
+        }
+        if (!"GET".equals(exchange.getRequestMethod())) {
+            sendResponse(exchange, 405, createErrorResponse("Method not allowed"));
+            return;
+        }
+        try {
+            List<school.model.User> students = schoolFacade.getAllStudents();
+            JSONArray studentsArray = new JSONArray();
+            for (school.model.User student : students) {
+                JSONObject studentJson = new JSONObject();
+                studentJson.put("userId", student.getUserId());
+                studentJson.put("firstName", student.getFirstName());
+                studentJson.put("lastName", student.getLastName());
+                studentJson.put("name", student.getName());
+                studentJson.put("email", student.getEmail());
+                studentsArray.put(studentJson);
+            }
+
+            JSONObject response = new JSONObject();
+            response.put("success", true);
+            response.put("students", studentsArray);
+            sendResponse(exchange, 200, response.toString());
+        } catch (Exception e) {
+            sendResponse(exchange, 400, createErrorResponse(e.getMessage()));
+        }
+    }
+
+    public void handleGetAllUsers(HttpExchange exchange) throws IOException {
+        if ("OPTIONS".equals(exchange.getRequestMethod())) {
+            handleOptions(exchange);
+            return;
+        }
+        if (!"GET".equals(exchange.getRequestMethod())) {
+            sendResponse(exchange, 405, createErrorResponse("Method not allowed"));
+            return;
+        }
+        try {
+            List<school.model.User> users = schoolFacade.getAllUsers();
+            JSONArray usersArray = new JSONArray();
+            for (school.model.User user : users) {
+                JSONObject userJson = new JSONObject();
+                userJson.put("id", user.getId());
+                userJson.put("userId", user.getUserId());
+                userJson.put("firstName", user.getFirstName());
+                userJson.put("lastName", user.getLastName());
+                userJson.put("name", user.getName());
+                userJson.put("email", user.getEmail());
+                userJson.put("major", user.getMajor());
+                userJson.put("department", user.getDepartment());
+                userJson.put("position", user.getPosition());
+                JSONArray rolesArray = new JSONArray();
+                for (school.model.Role role : user.getRoles()) {
+                    rolesArray.put(role.getName());
+                }
+                userJson.put("roles", rolesArray);
+                usersArray.put(userJson);
+            }
+
+            JSONObject response = new JSONObject();
+            response.put("success", true);
+            response.put("users", usersArray);
+            sendResponse(exchange, 200, response.toString());
+        } catch (Exception e) {
+            sendResponse(exchange, 400, createErrorResponse(e.getMessage()));
+        }
+    }
+
+    public void handleGetAllStaff(HttpExchange exchange) throws IOException {
+        if ("OPTIONS".equals(exchange.getRequestMethod())) {
+            handleOptions(exchange);
+            return;
+        }
+        if (!"GET".equals(exchange.getRequestMethod())) {
+            sendResponse(exchange, 405, createErrorResponse("Method not allowed"));
+            return;
+        }
+        try {
+            List<school.model.User> staff = schoolFacade.getAllStaff();
+            JSONArray staffArray = new JSONArray();
+            for (school.model.User user : staff) {
+                JSONObject userJson = new JSONObject();
+                userJson.put("id", user.getId());
+                userJson.put("userId", user.getUserId());
+                userJson.put("firstName", user.getFirstName());
+                userJson.put("lastName", user.getLastName());
+                userJson.put("name", user.getName());
+                userJson.put("email", user.getEmail());
+                userJson.put("department", user.getDepartment());
+                userJson.put("position", user.getPosition());
+                JSONArray rolesArray = new JSONArray();
+                for (school.model.Role role : user.getRoles()) {
+                    rolesArray.put(role.getName());
+                }
+                userJson.put("roles", rolesArray);
+                staffArray.put(userJson);
+            }
+
+            JSONObject response = new JSONObject();
+            response.put("success", true);
+            response.put("staff", staffArray);
+            sendResponse(exchange, 200, response.toString());
+        } catch (Exception e) {
+            sendResponse(exchange, 400, createErrorResponse(e.getMessage()));
+        }
+    }
+
+    public void handleUpdateUser(HttpExchange exchange) throws IOException {
+        if ("OPTIONS".equals(exchange.getRequestMethod())) {
+            handleOptions(exchange);
+            return;
+        }
+        if (!"POST".equals(exchange.getRequestMethod())) {
+            sendResponse(exchange, 405, createErrorResponse("Method not allowed"));
+            return;
+        }
+        try {
+            String requestBody = readRequestBody(exchange);
+            JSONObject json = new JSONObject(requestBody);
+            String userId = json.getString("userId");
+            String firstName = json.optString("firstName", null);
+            String lastName = json.optString("lastName", null);
+            String email = json.optString("email", null);
+            String major = json.optString("major", null);
+            String department = json.optString("department", null);
+            String position = json.optString("position", null);
+
+            school.model.User updatedUser = schoolFacade.updateUser(userId, firstName, lastName, email, major, department, position);
+            if (updatedUser != null) {
+                JSONObject response = new JSONObject();
+                response.put("success", true);
+                response.put("message", "User updated successfully");
+                response.put("userId", updatedUser.getUserId());
+                sendResponse(exchange, 200, response.toString());
+            } else {
+                sendResponse(exchange, 404, createErrorResponse("User not found"));
+            }
+        } catch (Exception e) {
+            sendResponse(exchange, 400, createErrorResponse(e.getMessage()));
+        }
+    }
+
+    public void handleDeleteUser(HttpExchange exchange) throws IOException {
+        if ("OPTIONS".equals(exchange.getRequestMethod())) {
+            handleOptions(exchange);
+            return;
+        }
+        if (!"POST".equals(exchange.getRequestMethod())) {
+            sendResponse(exchange, 405, createErrorResponse("Method not allowed"));
+            return;
+        }
+        try {
+            String requestBody = readRequestBody(exchange);
+            JSONObject json = new JSONObject(requestBody);
+            String userId = json.getString("userId");
+
+            schoolFacade.deleteUser(userId);
+
+            JSONObject response = new JSONObject();
+            response.put("success", true);
+            response.put("message", "User deleted successfully");
+            sendResponse(exchange, 200, response.toString());
+        } catch (Exception e) {
+            sendResponse(exchange, 400, createErrorResponse(e.getMessage()));
+        }
+    }
+
+    public void handleGetNotifications(HttpExchange exchange) throws IOException {
+        if ("OPTIONS".equals(exchange.getRequestMethod())) {
+            handleOptions(exchange);
+            return;
+        }
+        if (!"GET".equals(exchange.getRequestMethod())) {
+            sendResponse(exchange, 405, createErrorResponse("Method not allowed"));
+            return;
+        }
+        try {
+            String query = exchange.getRequestURI().getQuery();
+            String userId = null;
+            if (query != null) {
+                for (String param : query.split("&")) {
+                    String[] pair = param.split("=");
+                    if (pair.length == 2 && "userId".equals(pair[0])) {
+                        userId = java.net.URLDecoder.decode(pair[1], StandardCharsets.UTF_8);
+                    }
+                }
+            }
+            if (userId == null) {
+                sendResponse(exchange, 400, createErrorResponse("userId parameter required"));
+                return;
+            }
+
+            List<school.model.Notification> notifications = schoolFacade.getUserNotifications(userId);
+            JSONArray notifArray = new JSONArray();
+            for (school.model.Notification notif : notifications) {
+                JSONObject notifJson = new JSONObject();
+                notifJson.put("id", notif.getId());
+                notifJson.put("message", notif.getMessage());
+                notifJson.put("type", notif.getType());
+                notifJson.put("isRead", notif.getIsRead());
+                notifJson.put("createdAt", notif.getCreatedAt().toString());
+                notifArray.put(notifJson);
+            }
+
+            JSONObject response = new JSONObject();
+            response.put("success", true);
+            response.put("notifications", notifArray);
+            sendResponse(exchange, 200, response.toString());
+        } catch (Exception e) {
+            sendResponse(exchange, 400, createErrorResponse(e.getMessage()));
+        }
+    }
+
+    public void handleMarkNotificationRead(HttpExchange exchange) throws IOException {
+        if ("OPTIONS".equals(exchange.getRequestMethod())) {
+            handleOptions(exchange);
+            return;
+        }
+        if (!"POST".equals(exchange.getRequestMethod())) {
+            sendResponse(exchange, 405, createErrorResponse("Method not allowed"));
+            return;
+        }
+        try {
+            String requestBody = readRequestBody(exchange);
+            JSONObject json = new JSONObject(requestBody);
+            Long notificationId = json.getLong("notificationId");
+
+            schoolFacade.markNotificationAsRead(notificationId);
+
+            JSONObject response = new JSONObject();
+            response.put("success", true);
+            response.put("message", "Notification marked as read");
+            sendResponse(exchange, 200, response.toString());
+        } catch (Exception e) {
+            sendResponse(exchange, 400, createErrorResponse(e.getMessage()));
+        }
+    }
+
+    public void handleLinkParentToStudent(HttpExchange exchange) throws IOException {
+        if ("OPTIONS".equals(exchange.getRequestMethod())) {
+            handleOptions(exchange);
+            return;
+        }
+        if (!"POST".equals(exchange.getRequestMethod())) {
+            sendResponse(exchange, 405, createErrorResponse("Method not allowed"));
+            return;
+        }
+        try {
+            String requestBody = readRequestBody(exchange);
+            JSONObject json = new JSONObject(requestBody);
+            String parentUserId = json.getString("parentUserId");
+            String studentUserId = json.getString("studentUserId");
+
+            schoolFacade.linkParentToStudent(parentUserId, studentUserId);
+
+            JSONObject response = new JSONObject();
+            response.put("success", true);
+            response.put("message", "Parent linked to student successfully");
+            sendResponse(exchange, 200, response.toString());
+        } catch (Exception e) {
+            sendResponse(exchange, 400, createErrorResponse(e.getMessage()));
+        }
+    }
+
+    public void handleGetParentStudents(HttpExchange exchange) throws IOException {
+        if ("OPTIONS".equals(exchange.getRequestMethod())) {
+            handleOptions(exchange);
+            return;
+        }
+        if (!"GET".equals(exchange.getRequestMethod())) {
+            sendResponse(exchange, 405, createErrorResponse("Method not allowed"));
+            return;
+        }
+        try {
+            String query = exchange.getRequestURI().getQuery();
+            String parentUserId = null;
+            if (query != null) {
+                for (String param : query.split("&")) {
+                    String[] pair = param.split("=");
+                    if (pair.length == 2 && "parentUserId".equals(pair[0])) {
+                        parentUserId = java.net.URLDecoder.decode(pair[1], StandardCharsets.UTF_8);
+                    }
+                }
+            }
+            if (parentUserId == null) {
+                sendResponse(exchange, 400, createErrorResponse("parentUserId parameter required"));
+                return;
+            }
+
+            List<String> studentIds = schoolFacade.getStudentIdsForParent(parentUserId);
+            JSONObject response = new JSONObject();
+            response.put("success", true);
+            response.put("studentIds", new JSONArray(studentIds));
             sendResponse(exchange, 200, response.toString());
         } catch (Exception e) {
             sendResponse(exchange, 400, createErrorResponse(e.getMessage()));

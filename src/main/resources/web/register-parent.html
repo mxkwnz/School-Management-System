@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register - School Management System</title>
+    <title>Parent Registration - School Management System</title>
     <link rel="stylesheet" href="styles.css">
     <style>
         body {
@@ -38,6 +38,26 @@
             letter-spacing: -0.5px;
         }
         
+        .info-box {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(102, 126, 234, 0.1) 100%);
+            padding: 20px;
+            border-radius: 16px;
+            margin-bottom: 30px;
+            border-left: 4px solid #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
+        }
+        
+        .info-box p {
+            margin: 0;
+            color: #1e40af;
+            font-size: 0.95em;
+            line-height: 1.6;
+        }
+        
+        .info-box strong {
+            color: #667eea;
+        }
+        
         .auth-link {
             text-align: center;
             margin-top: 30px;
@@ -48,6 +68,7 @@
         .auth-link p {
             color: #4b5563;
             font-size: 0.95em;
+            margin: 8px 0;
         }
         
         .auth-link a {
@@ -91,7 +112,10 @@
 </head>
 <body>
 <div class="auth-container">
-    <h2>Student Registration</h2>
+    <h2>Parent Registration</h2>
+    <div class="info-box">
+        <p><strong>Note:</strong> After registration, please contact an administrator to link your account to your child's student account.</p>
+    </div>
     <form id="registerForm" onsubmit="handleRegister(event)">
         <div class="form-group">
             <label>User ID:</label>
@@ -114,16 +138,12 @@
             <input type="password" id="password" required>
         </div>
         
-        <div class="form-group">
-            <label>Major:</label>
-            <input type="text" id="major" required>
-        </div>
-        
-        <button type="submit" class="btn-primary" style="width: 100%;">Register</button>
+        <button type="submit" class="btn-primary" style="width: 100%;">Register as Parent</button>
         <div id="registerResult" class="result"></div>
     </form>
     <div class="auth-link">
         <p>Already have an account? <a href="login.html">Login here</a></p>
+        <p><a href="register.html">Register as Student instead</a></p>
     </div>
 </div>
 
@@ -142,8 +162,7 @@ async function handleRegister(event) {
         lastName: document.getElementById('lastName').value,
         email: document.getElementById('email').value,
         password: document.getElementById('password').value,
-        userType: 'student',
-        major: document.getElementById('major').value
+        userType: 'parent'
     };
 
     try {
@@ -158,7 +177,6 @@ async function handleRegister(event) {
         const result = await response.json();
 
         if (result.success) {
-            // Store user info
             localStorage.setItem('user', JSON.stringify({
                 userId: result.userId,
                 firstName: result.firstName,
@@ -168,7 +186,6 @@ async function handleRegister(event) {
                 roles: result.roles
             }));
             
-            // Redirect to dashboard
             window.location.href = 'dashboard.html';
         } else {
             resultDiv.className = 'result error';

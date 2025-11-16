@@ -45,6 +45,10 @@ public class AuthenticationService {
             Role advisorRole = roleRepository.findByName("ADVISOR")
                     .orElseGet(() -> roleRepository.save(new Role("ADVISOR")));
             user.addRole(advisorRole);
+        } else if ("parent".equalsIgnoreCase(userType)) {
+            Role parentRole = roleRepository.findByName("PARENT")
+                    .orElseGet(() -> roleRepository.save(new Role("PARENT")));
+            user.addRole(parentRole);
         }
 
         return userRepository.save(user);
