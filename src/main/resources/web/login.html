@@ -135,8 +135,9 @@ async function handleLogin(event) {
         const result = await response.json();
 
         if (result.success) {
-            // Store user info in localStorage
+            // Store user info in localStorage (including numeric primary key id for messaging)
             localStorage.setItem('user', JSON.stringify({
+                id: result.id,
                 userId: result.userId,
                 firstName: result.firstName,
                 lastName: result.lastName,

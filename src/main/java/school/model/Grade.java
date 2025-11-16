@@ -19,6 +19,9 @@ public class Grade {
     @Column(nullable = false)
     private String subject;
 
+    @Column(name = "subject_id")
+    private Long subjectId;
+
     @Column(nullable = false)
     private Integer score;
 
@@ -37,6 +40,16 @@ public class Grade {
         this.studentId = studentId;
         this.studentName = studentName;
         this.subject = subject;
+        this.score = score;
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public Grade(String studentId, String studentName, String subject, Long subjectId, Integer score) {
+        this.studentId = studentId;
+        this.studentName = studentName;
+        this.subject = subject;
+        this.subjectId = subjectId;
         this.score = score;
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
@@ -72,6 +85,14 @@ public class Grade {
 
     public void setSubject(String subject) {
         this.subject = subject;
+    }
+
+    public Long getSubjectId() {
+        return subjectId;
+    }
+
+    public void setSubjectId(Long subjectId) {
+        this.subjectId = subjectId;
     }
 
     public Integer getScore() {

@@ -1,6 +1,7 @@
 const API_BASE = 'http://localhost:8080';
 
 let currentUser = null;
+let allSubjects = [];
 
 // Initialize dashboard
 document.addEventListener('DOMContentLoaded', function() {
@@ -15,11 +16,13 @@ document.addEventListener('DOMContentLoaded', function() {
     displayUserInfo();
     loadDashboard();
     loadStudentsForDropdowns();
+    loadSubjectsForDropdowns();
+    loadUsersCache();
     
-    // Setup subject input listener for loading current grade
-    const subjectInput = document.getElementById('gradeSubject');
-    if (subjectInput) {
-        subjectInput.addEventListener('blur', function() {
+    // Setup subject listener for loading current grade
+    const subjectSelect = document.getElementById('gradeSubjectSelect');
+    if (subjectSelect) {
+        subjectSelect.addEventListener('change', function() {
             const studentSelect = document.getElementById('gradeStudentSelect');
             if (studentSelect && studentSelect.value && this.value) {
                 loadCurrentGrade(studentSelect.value, this.value);
@@ -29,6 +32,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 let allStudents = [];
+let allUsers = [];
 
 async function loadStudentsForDropdowns() {
     try {
@@ -47,6 +51,7 @@ async function loadStudentsForDropdowns() {
 function populateStudentDropdowns() {
     const gradeSelect = document.getElementById('gradeStudentSelect');
     const attSelect = document.getElementById('attStudentSelect');
+    const msgSelect = document.getElementById('messageStudentSelect');
     
     if (gradeSelect) {
         gradeSelect.innerHTML = '<option value="">-- Select a student --</option>';
@@ -56,6 +61,7 @@ function populateStudentDropdowns() {
             option.textContent = `${student.firstName} ${student.lastName} (${student.userId})`;
             option.dataset.firstName = student.firstName;
             option.dataset.lastName = student.lastName;
+            option.dataset.pk = student.id;
             gradeSelect.appendChild(option);
         });
     }
@@ -68,7 +74,76 @@ function populateStudentDropdowns() {
             option.textContent = `${student.firstName} ${student.lastName} (${student.userId})`;
             option.dataset.firstName = student.firstName;
             option.dataset.lastName = student.lastName;
+            option.dataset.pk = student.id;
             attSelect.appendChild(option);
+        });
+    }
+
+    if (msgSelect) {
+        msgSelect.innerHTML = '<option value="">-- Select a student --</option>';
+        allStudents.forEach(student => {
+            const option = document.createElement('option');
+            option.value = student.userId;
+            option.textContent = `${student.firstName} ${student.lastName} (${student.userId})`;
+            option.dataset.firstName = student.firstName;
+            option.dataset.lastName = student.lastName;
+            option.dataset.pk = student.id;
+            msgSelect.appendChild(option);
+        });
+    }
+}
+
+async function loadSubjectsForDropdowns() {
+    try {
+        const response = await fetch(`${API_BASE}/api/subjects/all`);
+        const result = await response.json();
+        if (result.success) {
+            allSubjects = result.subjects || [];
+            populateSubjectDropdowns();
+        }
+    } catch (error) {
+        console.error('Error loading subjects:', error);
+    }
+}
+
+// Load all users (for things like advisor selection)
+async function loadUsersCache() {
+    try {
+        const response = await fetch(`${API_BASE}/api/users/all`);
+        const result = await response.json();
+        if (result.success) {
+            allUsers = result.users;
+            // After users are loaded, populate advisor dropdown for students
+            populateAdvisorDropdown();
+        }
+    } catch (error) {
+        console.error('Error loading users:', error);
+    }
+}
+
+function populateSubjectDropdowns() {
+    const gradeSubjectSelect = document.getElementById('gradeSubjectSelect');
+    const attSubjectSelect = document.getElementById('attSubjectSelect');
+
+    if (gradeSubjectSelect) {
+        gradeSubjectSelect.innerHTML = '<option value="">-- Select a subject --</option>';
+        allSubjects.forEach(subject => {
+            const option = document.createElement('option');
+            option.value = subject.code;
+            option.textContent = `${subject.name} (${subject.code})`;
+            option.dataset.id = subject.id;
+            gradeSubjectSelect.appendChild(option);
+        });
+    }
+
+    if (attSubjectSelect) {
+        attSubjectSelect.innerHTML = '<option value="">-- Select a subject --</option>';
+        allSubjects.forEach(subject => {
+            const option = document.createElement('option');
+            option.value = subject.code;
+            option.textContent = `${subject.name} (${subject.code})`;
+            option.dataset.id = subject.id;
+            attSubjectSelect.appendChild(option);
         });
     }
 }
@@ -82,7 +157,8 @@ function onStudentSelectChange(selectElement, type) {
             // Student name is auto-filled from dropdown
         } else if (type === 'grade') {
             // Load current grade when student and subject are selected
-            const subject = document.getElementById('gradeSubject').value;
+            const subjectSelect = document.getElementById('gradeSubjectSelect');
+            const subject = subjectSelect ? subjectSelect.value : '';
             if (subject) {
                 loadCurrentGrade(selectedOption.value, subject);
             }
@@ -157,6 +233,102 @@ function showStudentDashboard() {
     document.getElementById('adminDashboard').classList.remove('active');
 }
 
+// ---- Student ↔ Advisor messaging ----
+
+function populateAdvisorDropdown() {
+    const select = document.getElementById('studentAdvisorSelect');
+    if (!select || !allUsers || allUsers.length === 0) return;
+
+    select.innerHTML = '<option value="">-- Select an advisor --</option>';
+    allUsers
+        .filter(u => Array.isArray(u.roles) && u.roles.includes('ADVISOR'))
+        .forEach(advisor => {
+            const option = document.createElement('option');
+            option.value = advisor.userId;
+            option.textContent = `${advisor.firstName || ''} ${advisor.lastName || ''} (${advisor.userId})`;
+            option.dataset.pk = advisor.id;
+            select.appendChild(option);
+        });
+}
+
+async function onStudentAdvisorChange() {
+    const select = document.getElementById('studentAdvisorSelect');
+    const option = select ? select.options[select.selectedIndex] : null;
+    const container = document.getElementById('studentMessagesContainer');
+    if (!option || !option.dataset.pk) {
+        if (container) {
+            container.innerHTML = '<p style="color: #9ca3af; text-align: center;">Select an advisor to view the conversation.</p>';
+        }
+        return;
+    }
+    const advisorPk = option.dataset.pk;
+    await loadConversationWithAdvisor(advisorPk);
+}
+
+async function loadConversationWithAdvisor(advisorPk) {
+    if (!currentUser || typeof currentUser.id === 'undefined' || currentUser.id === null) {
+        console.error('Current user id is missing.');
+        return;
+    }
+    const partnerPk = Number(advisorPk);
+    if (!Number.isFinite(partnerPk)) {
+        console.error('Advisor PK is invalid or undefined:', advisorPk);
+        return;
+    }
+    try {
+        const response = await fetch(
+            `${API_BASE}/api/messages/conversation?userPkA=${currentUser.id}&userPkB=${partnerPk}`
+        );
+        const result = await response.json();
+        if (result.success) {
+            renderMessages(result.messages, partnerPk, 'studentMessagesContainer');
+        }
+    } catch (error) {
+        console.error('Error loading advisor conversation:', error);
+    }
+}
+
+async function sendMessageToAdvisor(event) {
+    event.preventDefault();
+    const select = document.getElementById('studentAdvisorSelect');
+    const option = select ? select.options[select.selectedIndex] : null;
+    if (!option || !option.dataset.pk) {
+        alert('Please select an advisor first.');
+        return;
+    }
+    const advisorPk = Number(option.dataset.pk);
+    if (!Number.isFinite(advisorPk)) {
+        alert('Selected advisor has invalid id.');
+        return;
+    }
+    const contentInput = document.getElementById('studentMessageContent');
+    const content = contentInput ? contentInput.value.trim() : '';
+    if (!content) return;
+
+    try {
+        const response = await fetch(`${API_BASE}/api/messages/send`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                senderPk: currentUser.id,
+                receiverPk: advisorPk,
+                content: content
+            })
+        });
+        const result = await response.json();
+        if (result.success) {
+            contentInput.value = '';
+            await loadConversationWithAdvisor(advisorPk);
+        } else {
+            alert('Error sending message: ' + (result.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error sending message: ' + error.message);
+    }
+}
+
 function showTeacherDashboard() {
     document.getElementById('studentDashboard').classList.remove('active');
     document.getElementById('teacherDashboard').classList.add('active');
@@ -191,6 +363,112 @@ function showTeacherTab(tabName) {
     
     document.getElementById('teacher' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.add('active');
     event.target.classList.add('active');
+}
+
+function onMessageStudentChange() {
+    const select = document.getElementById('messageStudentSelect');
+    const option = select.options[select.selectedIndex];
+    if (!option || !option.dataset.pk) {
+        document.getElementById('messagesContainer').innerHTML =
+            '<p style="color: #9ca3af; text-align: center;">Select a student to view the conversation.</p>';
+        return;
+    }
+    const studentPk = option.dataset.pk;
+    loadConversationWithStudent(studentPk);
+}
+
+async function loadConversationWithStudent(studentPk) {
+    // Ensure we have a valid current user and partner primary key
+    if (!currentUser || typeof currentUser.id === 'undefined' || currentUser.id === null) {
+        console.error('Current user id is missing.');
+        return;
+    }
+    const partnerPk = Number(studentPk);
+    if (!Number.isFinite(partnerPk)) {
+        console.error('Student PK is invalid or undefined:', studentPk);
+        return;
+    }
+    try {
+        const response = await fetch(
+            `${API_BASE}/api/messages/conversation?userPkA=${currentUser.id}&userPkB=${partnerPk}`
+        );
+        const result = await response.json();
+        if (result.success) {
+            renderMessages(result.messages, partnerPk, 'messagesContainer');
+        }
+    } catch (error) {
+        console.error('Error loading conversation:', error);
+    }
+}
+
+function renderMessages(messages, partnerPk, containerId = 'messagesContainer') {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    if (!messages || messages.length === 0) {
+        container.innerHTML = '<p style="color: #9ca3af; text-align: center;">No messages yet. Start the conversation!</p>';
+        return;
+    }
+    messages.forEach(msg => {
+        const isMine = msg.senderPk === currentUser.id;
+        const msgDiv = document.createElement('div');
+        msgDiv.style.marginBottom = '8px';
+        msgDiv.style.display = 'flex';
+        msgDiv.style.justifyContent = isMine ? 'flex-end' : 'flex-start';
+        const bubble = document.createElement('div');
+        bubble.style.maxWidth = '70%';
+        bubble.style.padding = '8px 12px';
+        bubble.style.borderRadius = '12px';
+        bubble.style.fontSize = '0.95em';
+        bubble.style.whiteSpace = 'pre-wrap';
+        bubble.style.boxShadow = '0 1px 3px rgba(15,23,42,0.1)';
+        bubble.style.background = isMine ? '#4f46e5' : '#e5e7eb';
+        bubble.style.color = isMine ? '#ffffff' : '#111827';
+        bubble.textContent = msg.content;
+        msgDiv.appendChild(bubble);
+        container.appendChild(msgDiv);
+    });
+    container.scrollTop = container.scrollHeight;
+}
+
+async function sendMessageToStudent(event) {
+    event.preventDefault();
+    const select = document.getElementById('messageStudentSelect');
+    const option = select.options[select.selectedIndex];
+    if (!option || !option.dataset.pk) {
+        alert('Please select a student first.');
+        return;
+    }
+    const studentPk = Number(option.dataset.pk);
+    if (!Number.isFinite(studentPk)) {
+        alert('Selected student has invalid id.');
+        return;
+    }
+    const contentInput = document.getElementById('messageContent');
+    const content = contentInput.value.trim();
+    if (!content) return;
+
+    try {
+        const response = await fetch(`${API_BASE}/api/messages/send`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                senderPk: currentUser.id,
+                receiverPk: studentPk,
+                content: content
+            })
+        });
+        const result = await response.json();
+        if (result.success) {
+            contentInput.value = '';
+            loadConversationWithStudent(studentPk);
+        } else {
+            alert('Error sending message: ' + (result.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error sending message: ' + error.message);
+    }
 }
 
 function showAdminTab(tabName) {
@@ -367,7 +645,7 @@ async function updateStudentGrade(event) {
     const selectedOption = studentSelect.options[studentSelect.selectedIndex];
     const studentId = selectedOption.value;
     const studentName = selectedOption.textContent.split(' (')[0];
-    const subject = document.getElementById('gradeSubject').value;
+    const subject = document.getElementById('gradeSubjectSelect').value;
     const currentScore = parseInt(document.getElementById('currentGradeScore').value) || 0;
     const newScore = parseInt(document.getElementById('gradeScore').value);
 
@@ -389,6 +667,7 @@ async function updateStudentGrade(event) {
             },
             body: JSON.stringify({
                 studentName: studentId,
+                subject: subject,
                 oldGrade: currentScore,
                 newGrade: newScore,
                 notifyStudent: true,
@@ -451,7 +730,7 @@ async function recordAttendance(event) {
     const selectedOption = studentSelect.options[studentSelect.selectedIndex];
     const studentId = selectedOption.value;
     const studentName = selectedOption.textContent.split(' (')[0];
-    const subject = document.getElementById('attSubject').value;
+    const subject = document.getElementById('attSubjectSelect').value;
     const date = document.getElementById('attDate').value;
     const present = document.getElementById('attPresent').value === 'true';
 
@@ -556,7 +835,8 @@ async function onboardStaff(event) {
     event.preventDefault();
     const data = {
         id: document.getElementById('adminStaffId').value,
-        name: document.getElementById('adminStaffName').value,
+        firstName: document.getElementById('adminStaffFirstName').value,
+        lastName: document.getElementById('adminStaffLastName').value,
         department: document.getElementById('adminStaffDept').value,
         position: document.getElementById('adminStaffPosition').value,
         year: '2024-2025',
@@ -589,33 +869,9 @@ async function onboardStaff(event) {
 }
 
 async function runSystemDemo() {
-    const outputDiv = document.getElementById('demoOutput');
-    outputDiv.className = 'result success';
-    outputDiv.innerHTML = '<strong>Running demo...</strong>';
-    outputDiv.style.display = 'block';
-
-    try {
-        const response = await fetch(`${API_BASE}/api/demo/run`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-
-        const result = await response.json();
-        if (result.success) {
-            outputDiv.innerHTML = `
-                <strong>✓ ${result.message}</strong>
-                <pre>${result.output}</pre>
-            `;
-        } else {
-            outputDiv.className = 'result error';
-            outputDiv.innerHTML = `<strong>✗ Error:</strong> ${result.error}`;
-        }
-    } catch (error) {
-        outputDiv.className = 'result error';
-        outputDiv.innerHTML = `<strong>✗ Error:</strong> ${error.message}`;
-    }
+    // System demo has been removed from the dashboard UI.
+    // This function is kept as a no-op placeholder in case older HTML still references it.
+    return;
 }
 
 function logout() {
@@ -677,6 +933,10 @@ async function loadStaffList() {
                     <td>${staff.department || '-'}</td>
                     <td>${staff.position || '-'}</td>
                     <td>${roles}</td>
+                    <td>
+                        <button onclick="editUser('${staff.userId}')" class="btn-primary" style="padding: 5px 10px; margin-right: 5px;">Edit</button>
+                        <button onclick="deleteUser('${staff.userId}')" class="logout-btn" style="padding: 5px 10px;">Delete</button>
+                    </td>
                 `;
                 tbody.appendChild(row);
             });

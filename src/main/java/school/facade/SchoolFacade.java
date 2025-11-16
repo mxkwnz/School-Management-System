@@ -19,8 +19,12 @@ import school.repository.GradeRepository;
 import school.repository.NotificationRepository;
 import school.repository.ParentStudentRepository;
 import school.repository.UserRepository;
+import school.repository.SubjectRepository;
+import school.repository.MessageRepository;
 import school.model.Notification;
 import school.model.ParentStudent;
+import school.model.Subject;
+import school.model.Message;
 import school.service.AuthenticationService;
 import school.strategy.*;
 
@@ -45,6 +49,12 @@ public class SchoolFacade implements SchoolManagementService {
     
     @Autowired
     private ParentStudentRepository parentStudentRepository;
+
+    @Autowired
+    private SubjectRepository subjectRepository;
+
+    @Autowired
+    private MessageRepository messageRepository;
     
     @Autowired
     private AuthenticationService authenticationService;
@@ -119,6 +129,46 @@ public class SchoolFacade implements SchoolManagementService {
         
         gradeNotifier.setGrade(studentName, oldScore, newScore);
         createGradeNotification(studentName, oldScore, newScore);
+    }
+
+    /**
+     * Update grade for a specific subject. The student identifier here is the string userId.
+     */
+    public void updateGradeForSubject(String studentUserId, String subject, NumericGrade oldGrade, int newScore) {
+        int oldScore = oldGrade.getScore();
+
+        NumericGrade numericGrade = new NumericGrade(newScore);
+        numericGrade.showScore();
+        new GradeAdapter(numericGrade).adaptGrade();
+
+        Optional<school.model.User> studentOptional = userRepository.findByUserId(studentUserId);
+        if (studentOptional.isPresent()) {
+            school.model.User student = studentOptional.get();
+
+            String effectiveSubject = (subject == null || subject.isEmpty()) ? "General" : subject;
+
+            Long subjectId = null;
+            if (subject != null && !subject.isEmpty()) {
+                Subject subjectEntity = subjectRepository.findByCode(subject)
+                        .orElseGet(() -> subjectRepository.save(new Subject(subject, subject)));
+                subjectId = subjectEntity.getId();
+            }
+
+            Optional<Grade> gradeOptional = gradeRepository.findByStudentIdAndSubject(student.getUserId(), effectiveSubject);
+            Grade grade = gradeOptional.orElse(
+                    subjectId != null
+                            ? new Grade(student.getUserId(), student.getName(), effectiveSubject, subjectId, newScore)
+                            : new Grade(student.getUserId(), student.getName(), effectiveSubject, newScore)
+            );
+            grade.setScore(newScore);
+            if (subjectId != null) {
+                grade.setSubjectId(subjectId);
+            }
+            gradeRepository.save(grade);
+        }
+
+        gradeNotifier.setGrade(studentUserId, oldScore, newScore);
+        createGradeNotification(studentUserId, oldScore, newScore);
     }
     
     private void createGradeNotification(String studentName, int oldScore, int newScore) {
@@ -250,6 +300,21 @@ public class SchoolFacade implements SchoolManagementService {
         return calculator.calculateAttendance(presentDays, totalDays);
     }
 
+    /**
+     * Calculate attendance percentage for a specific subject.
+     */
+    public double calculateAttendancePercentageBySubject(String studentUserId, Long subjectId) {
+        long actualPresent = attendanceRepository.countByStudentIdAndSubjectIdAndPresentTrue(studentUserId, subjectId);
+        long actualTotal = attendanceRepository.countByStudentIdAndSubjectId(studentUserId, subjectId);
+        if (actualTotal == 0) {
+            return 0.0;
+        }
+
+        AttendanceStrategy strategy = new PercentageAttendanceStrategy();
+        AttendanceCalculator calculator = new AttendanceCalculator(strategy);
+        return calculator.calculateAttendance((int) actualPresent, (int) actualTotal);
+    }
+
     public boolean checkAttendancePassFail(String studentName, int presentDays, int totalDays) {
         AttendanceStrategy strategy = new PassFailAttendanceStrategy();
         AttendanceCalculator calculator = new AttendanceCalculator(strategy);
@@ -317,8 +382,19 @@ public class SchoolFacade implements SchoolManagementService {
         return attendanceRepository.findByStudentId(userId);
     }
 
+    public List<Subject> getAllSubjects() {
+        return subjectRepository.findAll();
+    }
+
     public void recordAttendance(String studentId, String studentName, LocalDate date, boolean present, String subject) {
-        Attendance attendance = new Attendance(studentId, studentName, date, present, subject);
+        Long subjectId = null;
+        if (subject != null && !subject.isEmpty()) {
+            Subject subjectEntity = subjectRepository.findByCode(subject)
+                    .orElseGet(() -> subjectRepository.save(new Subject(subject, subject)));
+            subjectId = subjectEntity.getId();
+        }
+
+        Attendance attendance = new Attendance(studentId, studentName, date, present, subject, subjectId);
         attendanceRepository.save(attendance);
         
         createAttendanceNotification(studentId, studentName, date, present, subject);
@@ -408,5 +484,25 @@ public class SchoolFacade implements SchoolManagementService {
         return parentStudentRepository.findByParentUserId(parentUserId).stream()
                 .map(ParentStudent::getStudentUserId)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Send a message between two users using their numeric primary keys (User.id).
+     */
+    public Message sendMessage(Long senderUserPk, Long receiverUserPk, String content) {
+        Message message = new Message(senderUserPk, receiverUserPk, content);
+        return messageRepository.save(message);
+    }
+
+    /**
+     * Get a conversation between two users ordered by time (both directions).
+     */
+    public java.util.List<Message> getConversation(Long userPkA, Long userPkB) {
+        java.util.List<Message> aToB = messageRepository.findBySenderUserPkAndReceiverUserPkOrderByCreatedAtAsc(userPkA, userPkB);
+        java.util.List<Message> bToA = messageRepository.findBySenderUserPkAndReceiverUserPkOrderByCreatedAtAsc(userPkB, userPkA);
+
+        return java.util.stream.Stream.concat(aToB.stream(), bToA.stream())
+                .sorted((m1, m2) -> m1.getCreatedAt().compareTo(m2.getCreatedAt()))
+                .collect(java.util.stream.Collectors.toList());
     }
 }

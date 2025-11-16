@@ -25,6 +25,9 @@ public class Attendance {
     @Column
     private String subject;
 
+    @Column(name = "subject_id")
+    private Long subjectId;
+
     public Attendance() {}
 
     public Attendance(String studentId, String studentName, LocalDate date, Boolean present, String subject) {
@@ -33,6 +36,15 @@ public class Attendance {
         this.date = date;
         this.present = present;
         this.subject = subject;
+    }
+
+    public Attendance(String studentId, String studentName, LocalDate date, Boolean present, String subject, Long subjectId) {
+        this.studentId = studentId;
+        this.studentName = studentName;
+        this.date = date;
+        this.present = present;
+        this.subject = subject;
+        this.subjectId = subjectId;
     }
 
     public Long getId() {
@@ -81,6 +93,14 @@ public class Attendance {
 
     public void setSubject(String subject) {
         this.subject = subject;
+    }
+
+    public Long getSubjectId() {
+        return subjectId;
+    }
+
+    public void setSubjectId(Long subjectId) {
+        this.subjectId = subjectId;
     }
 }
 
