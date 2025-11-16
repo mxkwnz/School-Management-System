@@ -37,10 +37,10 @@ public class EmailNotificationService {
             logger.info("   New Score: {}", newScore);
 
             mailSender.send(message);
-            logger.info("✅ Email successfully sent to: {}", toEmail);
+            logger.info("Email successfully sent to: {}", toEmail);
 
         } catch (Exception e) {
-            logger.error("❌ Failed to send email notification to {}: {}", toEmail, e.getMessage(), e);
+            logger.error("Failed to send email notification to {}: {}", toEmail, e.getMessage(), e);
         }
     }
 

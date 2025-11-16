@@ -9,6 +9,9 @@ import school.facade.SchoolFacade;
 import school.model.Attendance;
 import school.model.Grade;
 import school.service.AuthenticationService;
+import school.builder.Timetable;
+import school.builder.TimetableEntry;
+import school.builder.TimeSlot;
 import com.sun.net.httpserver.HttpExchange;
 import org.json.JSONObject;
 import org.json.JSONArray;
@@ -377,18 +380,29 @@ public class SchoolWebController {
             String year = json.optString("year", "2024-2025");
             String trimester = json.optString("trimester", "first");
 
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            PrintStream ps = new PrintStream(baos);
-            PrintStream oldOut = System.out;
-            System.setOut(ps);
-            getSchoolService().createStudentTimetable(studentName, year, trimester);
-            System.setOut(oldOut);
-            String output = baos.toString();
+            Timetable timetable = getSchoolService().createStudentTimetable(studentName, year, trimester);
+
+            JSONArray entriesArray = new JSONArray();
+            for (TimetableEntry entry : timetable.getEntries()) {
+                JSONObject entryJson = new JSONObject();
+                entryJson.put("subject", entry.getSubject());
+                entryJson.put("teacher", entry.getTeacher());
+                entryJson.put("room", entry.getRoom());
+                TimeSlot ts = entry.getTimeSlot();
+                if (ts != null) {
+                    entryJson.put("dayOfWeek", ts.getDayOfWeek());
+                    entryJson.put("startTime", ts.getStartTime());
+                    entryJson.put("endTime", ts.getEndTime());
+                }
+                entriesArray.put(entryJson);
+            }
 
             JSONObject response = new JSONObject();
             response.put("success", true);
             response.put("message", "Student timetable created");
-            response.put("output", output);
+            response.put("academicYear", timetable.getAcademicYear());
+            response.put("trimester", timetable.getTrimester());
+            response.put("entries", entriesArray);
             sendResponse(exchange, 200, response.toString());
         } catch (Exception e) {
             sendResponse(exchange, 400, createErrorResponse(e.getMessage()));
@@ -410,18 +424,29 @@ public class SchoolWebController {
             String year = json.getString("year");
             String trimester = json.getString("trimester");
 
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            PrintStream ps = new PrintStream(baos);
-            PrintStream oldOut = System.out;
-            System.setOut(ps);
-            getSchoolService().createCustomTimetable(year, trimester);
-            System.setOut(oldOut);
-            String output = baos.toString();
+            Timetable timetable = getSchoolService().createCustomTimetable(year, trimester);
+
+            JSONArray entriesArray = new JSONArray();
+            for (TimetableEntry entry : timetable.getEntries()) {
+                JSONObject entryJson = new JSONObject();
+                entryJson.put("subject", entry.getSubject());
+                entryJson.put("teacher", entry.getTeacher());
+                entryJson.put("room", entry.getRoom());
+                TimeSlot ts = entry.getTimeSlot();
+                if (ts != null) {
+                    entryJson.put("dayOfWeek", ts.getDayOfWeek());
+                    entryJson.put("startTime", ts.getStartTime());
+                    entryJson.put("endTime", ts.getEndTime());
+                }
+                entriesArray.put(entryJson);
+            }
 
             JSONObject response = new JSONObject();
             response.put("success", true);
             response.put("message", "Custom timetable created");
-            response.put("output", output);
+            response.put("academicYear", timetable.getAcademicYear());
+            response.put("trimester", timetable.getTrimester());
+            response.put("entries", entriesArray);
             sendResponse(exchange, 200, response.toString());
         } catch (Exception e) {
             sendResponse(exchange, 400, createErrorResponse(e.getMessage()));
@@ -443,18 +468,29 @@ public class SchoolWebController {
             String year = json.optString("year", "2024-2025");
             String trimester = json.optString("trimester", "second");
 
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            PrintStream ps = new PrintStream(baos);
-            PrintStream oldOut = System.out;
-            System.setOut(ps);
-            getSchoolService().createPartTimeTimetable(year, trimester);
-            System.setOut(oldOut);
-            String output = baos.toString();
+            Timetable timetable = getSchoolService().createPartTimeTimetable(year, trimester);
+
+            JSONArray entriesArray = new JSONArray();
+            for (TimetableEntry entry : timetable.getEntries()) {
+                JSONObject entryJson = new JSONObject();
+                entryJson.put("subject", entry.getSubject());
+                entryJson.put("teacher", entry.getTeacher());
+                entryJson.put("room", entry.getRoom());
+                TimeSlot ts = entry.getTimeSlot();
+                if (ts != null) {
+                    entryJson.put("dayOfWeek", ts.getDayOfWeek());
+                    entryJson.put("startTime", ts.getStartTime());
+                    entryJson.put("endTime", ts.getEndTime());
+                }
+                entriesArray.put(entryJson);
+            }
 
             JSONObject response = new JSONObject();
             response.put("success", true);
             response.put("message", "Part-time timetable created");
-            response.put("output", output);
+            response.put("academicYear", timetable.getAcademicYear());
+            response.put("trimester", timetable.getTrimester());
+            response.put("entries", entriesArray);
             sendResponse(exchange, 200, response.toString());
         } catch (Exception e) {
             sendResponse(exchange, 400, createErrorResponse(e.getMessage()));

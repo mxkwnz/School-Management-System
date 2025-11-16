@@ -530,6 +530,7 @@
                     <th>Subject</th>
                     <th>Score</th>
                     <th>Grade</th>
+                    <th>Status</th>
                     <th>Last Updated</th>
                 </tr>
             </thead>
@@ -547,6 +548,21 @@
                 </tr>
             </thead>
             <tbody id="attendanceBody">
+            </tbody>
+        </table>
+
+        <h3 style="margin-top: 30px; color: white; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);">My Timetable</h3>
+        <table id="studentTimetableTable">
+            <thead>
+                <tr>
+                    <th>Day</th>
+                    <th>Time</th>
+                    <th>Subject</th>
+                    <th>Teacher</th>
+                    <th>Room</th>
+                </tr>
+            </thead>
+            <tbody id="studentTimetableBody">
             </tbody>
         </table>
 
@@ -577,6 +593,10 @@
         <div class="card">
             <h3>My Children's Grades</h3>
             <div id="parentChildrenGrades" style="color: #4b5563;">Loading children's grades...</div>
+        </div>
+        <div class="card" style="margin-top: 20px;">
+            <h3>Children Timetables</h3>
+            <div id="parentChildrenTimetables" style="color: #4b5563;">Timetables will appear together with grades.</div>
         </div>
         <style>
             #parentDashboard #parentChildrenGrades p {
@@ -664,6 +684,22 @@
                     <button type="submit" class="btn-primary">Send Message</button>
                 </form>
             </div>
+        </div>
+
+        <div class="card" style="margin-top: 20px;">
+            <h3>My Teaching Timetable</h3>
+            <table id="teacherTimetableTable">
+                <thead>
+                    <tr>
+                        <th>Day</th>
+                        <th>Time</th>
+                        <th>Subject</th>
+                        <th>Room</th>
+                    </tr>
+                </thead>
+                <tbody id="teacherTimetableBody">
+                </tbody>
+            </table>
         </div>
     </div>
 
@@ -789,6 +825,23 @@
                     <button type="submit" class="btn-primary">Link Parent to Student</button>
                 </form>
             </div>
+        </div>
+
+        <div class="card" style="margin-top: 20px;">
+            <h3>School Timetable Overview</h3>
+            <table id="adminTimetableTable">
+                <thead>
+                    <tr>
+                        <th>Day</th>
+                        <th>Time</th>
+                        <th>Subject</th>
+                        <th>Teacher</th>
+                        <th>Room</th>
+                    </tr>
+                </thead>
+                <tbody id="adminTimetableBody">
+                </tbody>
+            </table>
         </div>
     </div>
 </div>

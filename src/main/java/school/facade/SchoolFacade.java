@@ -131,9 +131,6 @@ public class SchoolFacade implements SchoolManagementService {
         createGradeNotification(studentName, oldScore, newScore);
     }
 
-    /**
-     * Update grade for a specific subject. The student identifier here is the string userId.
-     */
     public void updateGradeForSubject(String studentUserId, String subject, NumericGrade oldGrade, int newScore) {
         int oldScore = oldGrade.getScore();
 
@@ -300,9 +297,6 @@ public class SchoolFacade implements SchoolManagementService {
         return calculator.calculateAttendance(presentDays, totalDays);
     }
 
-    /**
-     * Calculate attendance percentage for a specific subject.
-     */
     public double calculateAttendancePercentageBySubject(String studentUserId, Long subjectId) {
         long actualPresent = attendanceRepository.countByStudentIdAndSubjectIdAndPresentTrue(studentUserId, subjectId);
         long actualTotal = attendanceRepository.countByStudentIdAndSubjectId(studentUserId, subjectId);
@@ -486,17 +480,11 @@ public class SchoolFacade implements SchoolManagementService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Send a message between two users using their numeric primary keys (User.id).
-     */
     public Message sendMessage(Long senderUserPk, Long receiverUserPk, String content) {
         Message message = new Message(senderUserPk, receiverUserPk, content);
         return messageRepository.save(message);
     }
 
-    /**
-     * Get a conversation between two users ordered by time (both directions).
-     */
     public java.util.List<Message> getConversation(Long userPkA, Long userPkB) {
         java.util.List<Message> aToB = messageRepository.findBySenderUserPkAndReceiverUserPkOrderByCreatedAtAsc(userPkA, userPkB);
         java.util.List<Message> bToA = messageRepository.findBySenderUserPkAndReceiverUserPkOrderByCreatedAtAsc(userPkB, userPkA);

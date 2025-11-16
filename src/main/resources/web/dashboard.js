@@ -426,6 +426,30 @@ function showTeacherDashboard() {
         if (manageContent) manageContent.style.display = '';
         if (messagesContent) messagesContent.style.display = '';
     }
+
+    // Load a teaching timetable view for teachers/admins
+    loadTeacherTimetable();
+}
+
+async function loadTeacherTimetable() {
+    try {
+        const response = await fetch(`${API_BASE}/api/timetable/parttime`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                year: '2024-2025',
+                trimester: 'second'
+            })
+        });
+        const result = await response.json();
+        if (result.success) {
+            renderTimetable(result.entries || [], 'teacherTimetableBody', false);
+        }
+    } catch (error) {
+        console.error('Error loading teacher timetable:', error);
+    }
 }
 
 function showParentDashboard() {
@@ -460,6 +484,31 @@ function showAdminDashboard() {
     // Admin can still use messages if desired
     if (messagesBtn) messagesBtn.style.display = '';
     if (messagesContent) messagesContent.style.display = '';
+
+    // Load overview timetable for admin
+    loadAdminTimetable();
+}
+
+async function loadAdminTimetable() {
+    try {
+        const response = await fetch(`${API_BASE}/api/timetable/student`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                studentName: 'Overview',
+                year: '2025-2026',
+                trimester: 'first'
+            })
+        });
+        const result = await response.json();
+        if (result.success) {
+            renderTimetable(result.entries || [], 'adminTimetableBody', true);
+        }
+    } catch (error) {
+        console.error('Error loading admin timetable:', error);
+    }
 }
 
 function showTeacherTab(tabName) {
@@ -629,8 +678,33 @@ async function loadStudentData() {
             displayAttendance(attendanceData.attendance);
             document.getElementById('studentAttendance').textContent = attendanceData.percentage.toFixed(1);
         }
+
+        // Load timetable (default year/trimester for now)
+        await loadStudentTimetable(currentUser.name || currentUser.userId);
     } catch (error) {
         console.error('Error loading student data:', error);
+    }
+}
+
+async function loadStudentTimetable(studentName) {
+    try {
+        const response = await fetch(`${API_BASE}/api/timetable/student`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                studentName: studentName || 'Student',
+                year: '2024-2025',
+                trimester: 'first'
+            })
+        });
+        const result = await response.json();
+        if (result.success) {
+            renderTimetable(result.entries || [], 'studentTimetableBody', true);
+        }
+    } catch (error) {
+        console.error('Error loading student timetable:', error);
     }
 }
 
@@ -639,17 +713,19 @@ function displayGrades(grades) {
     tbody.innerHTML = '';
 
     if (grades.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">No grades available</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No grades available</td></tr>';
         return;
     }
 
     grades.forEach(grade => {
         const row = document.createElement('tr');
         const letterGrade = getLetterGrade(grade.score);
+        const status = grade.score >= 60 ? 'PASS' : 'FAIL';
         row.innerHTML = `
             <td>${grade.subject}</td>
             <td>${grade.score}</td>
             <td>${letterGrade}</td>
+            <td><span class="badge ${status === 'PASS' ? 'present' : 'absent'}">${status}</span></td>
             <td>${new Date(grade.updatedAt).toLocaleDateString()}</td>
         `;
         tbody.appendChild(row);
@@ -1260,12 +1336,12 @@ function displayNotifications(notifications) {
                 <div style="flex: 1;">
                     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
                         <span style="background: ${typeColor}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.75em; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">${notif.type.replace('_', ' ')}</span>
-                        ${!notif.isRead ? '<span style="width: 8px; height: 8px; background: #667eea; border-radius: 50%; display: inline-block; animation: pulse 2s infinite;"></span>' : ''}
+                ${!notif.isRead ? '<span style="width: 8px; height: 8px; background: #667eea; border-radius: 50%; display: inline-block; animation: pulse 2s infinite;"></span>' : ''}
                     </div>
                     <p style="margin: 8px 0; color: #1f2937; font-size: 1em; line-height: 1.6; font-weight: 500;">${notif.message}</p>
                     <small style="color: #9ca3af; font-size: 0.85em;">${new Date(notif.createdAt).toLocaleString()}</small>
                 </div>
-                ${!notif.isRead ? `<button onclick="event.stopPropagation(); markNotificationRead(${notif.id})" class="btn-primary" style="padding: 8px 16px; font-size: 0.9em; white-space: nowrap;">Mark Read</button>` : '<span style="color: #9ca3af; font-size: 0.85em;">✓ Read</span>'}
+                ${!notif.isRead ? `<button onclick="event.stopPropagation(); markNotificationRead(${notif.id})" class="btn-primary" style="padding: 8px 16px; font-size: 0.9em; white-space: nowrap;">Mark Read</button>` : '<span style="color: #9ca3af; font-size: 0.85em;">Read</span>'}
             </div>
         `;
         
@@ -1471,6 +1547,7 @@ function displayParentChildrenGrades(studentIds, gradesResults, attendanceResult
                         <th>Subject</th>
                         <th>Score</th>
                         <th>Grade</th>
+                        <th>Status</th>
                         <th>Last Updated</th>
                     </tr>
                 </thead>
@@ -1481,10 +1558,12 @@ function displayParentChildrenGrades(studentIds, gradesResults, attendanceResult
             gradesData.grades.forEach(grade => {
                 const row = document.createElement('tr');
                 const letterGrade = getLetterGrade(grade.score);
+                const status = grade.score >= 60 ? 'PASS' : 'FAIL';
                 row.innerHTML = `
                     <td>${grade.subject}</td>
                     <td>${grade.score}</td>
                     <td>${letterGrade}</td>
+                    <td><span class="badge ${status === 'PASS' ? 'present' : 'absent'}">${status}</span></td>
                     <td>${new Date(grade.updatedAt).toLocaleDateString()}</td>
                 `;
                 tbody.appendChild(row);
@@ -1505,5 +1584,39 @@ function displayParentChildrenGrades(studentIds, gradesResults, attendanceResult
     if (container.innerHTML === '') {
         container.innerHTML = '<p style="color: #4b5563; padding: 20px; text-align: center;">No grades available for your children.</p>';
     }
+}
+
+function renderTimetable(entries, tbodyId, includeTeacher) {
+    const tbody = document.getElementById(tbodyId);
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (!entries || entries.length === 0) {
+        const colSpan = includeTeacher ? 5 : 4;
+        tbody.innerHTML = `<tr><td colspan="${colSpan}" style="text-align: center;">No timetable entries</td></tr>`;
+        return;
+    }
+
+    entries.forEach(entry => {
+        const row = document.createElement('tr');
+        const time = `${entry.startTime || ''} - ${entry.endTime || ''}`.trim();
+        if (includeTeacher) {
+            row.innerHTML = `
+                <td>${entry.dayOfWeek || ''}</td>
+                <td>${time}</td>
+                <td>${entry.subject || ''}</td>
+                <td>${entry.teacher || ''}</td>
+                <td>${entry.room || ''}</td>
+            `;
+        } else {
+            row.innerHTML = `
+                <td>${entry.dayOfWeek || ''}</td>
+                <td>${time}</td>
+                <td>${entry.subject || ''}</td>
+                <td>${entry.room || ''}</td>
+            `;
+        }
+        tbody.appendChild(row);
+    });
 }
 
